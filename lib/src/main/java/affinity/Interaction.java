@@ -1,8 +1,8 @@
 package affinity;
 
 public class Interaction {
-	String fromID;
-	String toID;
+	public String fromID;
+	public String toID;
 
 	public Interaction(String from, String to) {
 		fromID = from;
