@@ -1,17 +1,20 @@
 package dataManager;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import affinity.InteracionType;
 import affinity.Interaction;
+import affinity.InteractionData;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -19,18 +22,17 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.UpdateItemResponse;
 
 public class DynamoDataManager implements DataManager {
 	String interactionTableName;
 	Region region;
 	AwsCredentialsProvider credentialsProvider;
-	int numberOfThreads = 2;
+	int numberOfThreads = 4;
 	ExecutorService executor;
-	ConcurrentHashMap<Interaction, InteracionType> map;
+	ConcurrentHashMap<Interaction, InteractionData> map;
 	DynamoDbClient client;
 	DynamoDbAsyncClient clientAsync;
-	ConcurrentHashMap<Interaction, InteractionData> reduce;
+	LinkedBlockingQueue<UpdateItemRequest> updateQueue;
 
 	public DynamoDataManager() {
 		this(Region.EU_CENTRAL_1,
@@ -43,7 +45,7 @@ public class DynamoDataManager implements DataManager {
 		credentialsProvider = ProfileCredentialsProvider.create();
 		executor = Executors.newFixedThreadPool(numberOfThreads);
 		map = new ConcurrentHashMap<>();
-		reduce = new ConcurrentHashMap<>();
+		updateQueue = new LinkedBlockingQueue<>();
 
 		client = DynamoDbClient.builder()
 				.credentialsProvider(credentialsProvider)
@@ -54,80 +56,80 @@ public class DynamoDataManager implements DataManager {
 				.region(region).build();
 	}
 
-	public void aggregate() {
-		UpdateItemRequest.Builder requestBuilder = UpdateItemRequest
-				.builder();
-		AttributeValue.Builder attributeValueBuilder = AttributeValue
-				.builder();
-		Map<String, AttributeValue> keysMap = new HashMap<>();
-		ArrayList<CompletableFuture<UpdateItemResponse>> responses = new ArrayList<>();
-		for (Entry<Interaction, InteracionType> entry : map
-				.entrySet()) {
-			Interaction key = entry.getKey();
-			InteracionType val = entry.getValue();
-			String expression = "ADD";
-			Map<String, AttributeValue> attributesMap = new HashMap<>();
-			keysMap.put("fromID",
-					attributeValueBuilder.s(key.fromID).build());
-			keysMap.put("toID",
-					attributeValueBuilder.s(key.toID).build());
-			String attributeKey;
-			AttributeValue attributeValue = AttributeValue.fromN("1");
-			switch (val) {
-				case like : {
-					attributeKey = ":l";
-					expression += " likes :l";
-					break;
-				}
-				case comment : {
-					attributeKey = ":cm";
-					expression += " comments :cm";
-					break;
-				}
-				case collaboration : {
-					attributeKey = ":cl";
-					expression += " collaborations :cl";
-					break;
-				}
-				default :
-					throw new IllegalArgumentException(
-							"Unexpected value: " + val);
-			}
-			attributesMap.put(attributeKey, attributeValue);
-			UpdateItemRequest request = requestBuilder
-					.tableName(interactionTableName).key(keysMap)
-					.updateExpression(expression)
-					.expressionAttributeValues(attributesMap).build();
-			// UpdateItemResponse response = client.updateItem(request);
-
-			CompletableFuture<UpdateItemResponse> response = clientAsync
-					.updateItem(request);
-			responses.add(response);
-		}
-		System.out.println("Total response: " + responses.size());
-		for (CompletableFuture<UpdateItemResponse> response : responses) {
-			try {
-				response.get();
-				// System.out.println();
-			} catch (Exception e) {
-				e.printStackTrace();
-				return;
-			}
-		}
-		System.out.println("Aggregation over");
-	}
-
 	public void shutdown() {
 		executor.shutdown();
 		try {
-			while (!executor.awaitTermination(1, TimeUnit.SECONDS))
+			while (!executor.awaitTermination(10, TimeUnit.SECONDS))
 				System.out.println("Not terminated");
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		} finally {
 			System.out.println("Terminated");
-			System.out.println("Total entries: " + map.size());
 		}
+	}
+
+	public void updateInteraction() {
+		numberOfThreads = 2 << 5;
+		executor = Executors.newFixedThreadPool(numberOfThreads);
+		List<UpdateTask> taskArray = new ArrayList<>();
+		for (int thread = 0; thread < numberOfThreads; thread++) {
+			// Runnable task that will only scan one segment
+			UpdateTask task = new UpdateTask(updateQueue, client);
+			// Execute the task
+			executor.execute(task);
+			taskArray.add(task);
+		}
+
+		for (Entry<Interaction, InteractionData> entry : map
+				.entrySet()) {
+			Interaction key = entry.getKey();
+			InteractionData val = entry.getValue();
+
+			Map<String, AttributeValue> keyMap = new HashMap<>();
+			keyMap.put("fromID", AttributeValue.fromS(key.fromID));
+			keyMap.put("toID", AttributeValue.fromS(key.toID));
+
+			Map<String, AttributeValue> attributesMap = new HashMap<>();
+
+			// createdAt
+			attributesMap.put(":c", AttributeValue
+					.fromS(new Date().toInstant().toString()));
+			// updatedAt
+			attributesMap.put(":u", AttributeValue
+					.fromS(new Date().toInstant().toString()));
+			attributesMap.putAll(val.getMap());
+
+			String expression = "SET updatedAt = :u, createdAt = if_not_exists(createdAt, :c), ";
+			expression += "likes = :l, comments = :cm, collaborations = :cl";
+			UpdateItemRequest updateRequestItem = UpdateItemRequest
+					.builder().tableName(interactionTableName)
+					.key(keyMap)
+					.expressionAttributeValues(attributesMap)
+					.updateExpression(expression).build();
+			updateQueue.add(updateRequestItem);
+		}
+		System.out.println("all elements added to queue");
+		for (UpdateTask updateTask : taskArray) {
+			updateTask.stop();
+		}
+	}
+
+	public void count() {
+		int l = 0, cm = 0, cl = 0;
+		for (Entry<Interaction, InteractionData> entry : map
+				.entrySet()) {
+			InteractionData val = entry.getValue();
+			l += val.likes;
+			cm += val.comments;
+			cl += val.collaborations;
+		}
+		System.out.println("likes = " + l);
+		System.out.println("comments = " + cm);
+		System.out.println("collaborations = " + cl);
+	}
+
+	public int mapSize() {
+		return map.size();
 	}
 
 	@Override
