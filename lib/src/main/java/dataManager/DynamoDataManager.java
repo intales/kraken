@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -44,6 +43,7 @@ public class DynamoDataManager implements DataManager {
 		credentialsProvider = ProfileCredentialsProvider.create();
 		executor = Executors.newFixedThreadPool(numberOfThreads);
 		map = new ConcurrentHashMap<>();
+		reduce = new ConcurrentHashMap<>();
 
 		client = DynamoDbClient.builder()
 				.credentialsProvider(credentialsProvider)
@@ -76,17 +76,17 @@ public class DynamoDataManager implements DataManager {
 			switch (val) {
 				case like : {
 					attributeKey = ":l";
-					expression += " likes :l,";
+					expression += " likes :l";
 					break;
 				}
 				case comment : {
 					attributeKey = ":cm";
-					expression += " comments :cm,";
+					expression += " comments :cm";
 					break;
 				}
 				case collaboration : {
 					attributeKey = ":cl";
-					expression += " collaborations :cl,";
+					expression += " collaborations :cl";
 					break;
 				}
 				default :
@@ -94,8 +94,6 @@ public class DynamoDataManager implements DataManager {
 							"Unexpected value: " + val);
 			}
 			attributesMap.put(attributeKey, attributeValue);
-			expression = expression.substring(0,
-					expression.length() - 1);
 			UpdateItemRequest request = requestBuilder
 					.tableName(interactionTableName).key(keysMap)
 					.updateExpression(expression)
@@ -106,18 +104,17 @@ public class DynamoDataManager implements DataManager {
 					.updateItem(request);
 			responses.add(response);
 		}
-		System.out.println("Cont: " + responses.size());
+		System.out.println("Total response: " + responses.size());
 		for (CompletableFuture<UpdateItemResponse> response : responses) {
 			try {
-				System.out.println(response.get());
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
+				response.get();
+				// System.out.println();
+			} catch (Exception e) {
 				e.printStackTrace();
-			} catch (ExecutionException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				return;
 			}
 		}
+		System.out.println("Aggregation over");
 	}
 
 	public void shutdown() {
