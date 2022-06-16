@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,12 +28,13 @@ public class DynamoDataManager implements DataManager {
 	String interactionTableName;
 	Region region;
 	AwsCredentialsProvider credentialsProvider;
-	int numberOfThreads = 4;
+	int numberOfThreads = 8;
 	ExecutorService executor;
 	ConcurrentHashMap<Interaction, InteractionData> map;
 	DynamoDbClient client;
 	DynamoDbAsyncClient clientAsync;
 	LinkedBlockingQueue<UpdateItemRequest> updateQueue;
+	Vector<Integer> counterVector;
 
 	public DynamoDataManager() {
 		this(Region.EU_CENTRAL_1,
@@ -46,6 +48,7 @@ public class DynamoDataManager implements DataManager {
 		executor = Executors.newFixedThreadPool(numberOfThreads);
 		map = new ConcurrentHashMap<>();
 		updateQueue = new LinkedBlockingQueue<>();
+		counterVector = new Vector<>();
 
 		client = DynamoDbClient.builder()
 				.credentialsProvider(credentialsProvider)
@@ -74,7 +77,8 @@ public class DynamoDataManager implements DataManager {
 		List<UpdateTask> taskArray = new ArrayList<>();
 		for (int thread = 0; thread < numberOfThreads; thread++) {
 			// Runnable task that will only scan one segment
-			UpdateTask task = new UpdateTask(updateQueue, client);
+			UpdateTask task = new UpdateTask(updateQueue, client,
+					counterVector);
 			// Execute the task
 			executor.execute(task);
 			taskArray.add(task);
@@ -108,7 +112,7 @@ public class DynamoDataManager implements DataManager {
 					.updateExpression(expression).build();
 			updateQueue.add(updateRequestItem);
 		}
-		System.out.println("all elements added to queue");
+		System.out.println("All elements added to queue");
 		for (UpdateTask updateTask : taskArray) {
 			updateTask.stop();
 		}
@@ -126,10 +130,17 @@ public class DynamoDataManager implements DataManager {
 		System.out.println("likes = " + l);
 		System.out.println("comments = " + cm);
 		System.out.println("collaborations = " + cl);
-	}
-
-	public int mapSize() {
-		return map.size();
+		System.out.println(
+				"count vector size = " + counterVector.size());
+		Integer c = 0;
+		for (Integer integer : counterVector) {
+			c += integer;
+		}
+		System.out.println("Total updates = " + c);
+		System.out.println("Total aggregated items = " + map.size());
+		if (map.size() != c)
+			System.err.println(
+					"Mismatch between the updated done and the aggregated data");
 	}
 
 	@Override

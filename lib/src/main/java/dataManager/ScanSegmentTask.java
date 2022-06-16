@@ -42,7 +42,8 @@ public class ScanSegmentTask implements Runnable {
 			do {
 				ScanRequest scanRequest = ScanRequest.builder()
 						.tableName(tableName)
-						// .limit(1000)
+						// .limit(2000)
+						.filterExpression("attribute_exists(toID)")
 						.exclusiveStartKey(mapStartKey)
 						.segment(thread)
 						.totalSegments(numberOfThreads).build();
@@ -52,12 +53,13 @@ public class ScanSegmentTask implements Runnable {
 						.items();
 				totalScannedItemCount += items.size();
 
+				String from, to;
 				for (Map<String, AttributeValue> item : items) {
-					if (item.containsKey("toID") && (!item.get(field)
-							.s().equals(item.get("toID").s()))) {
+					from = item.get(field).s();
+					to = item.get("toID").s();
+					if ((!from.equals(to))) {
 						Interaction interaction = new Interaction(
-								item.get(field).s(),
-								item.get("toID").s());
+								from, to);
 						add(interaction);
 					}
 				}

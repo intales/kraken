@@ -1,5 +1,6 @@
 package dataManager;
 
+import java.util.Vector;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -10,11 +11,13 @@ public class UpdateTask implements Runnable {
 	private LinkedBlockingQueue<UpdateItemRequest> queue;
 	private DynamoDbClient client;
 	private final AtomicBoolean running = new AtomicBoolean(false);
+	private Vector<Integer> counterVector;
 	public UpdateTask(
 			LinkedBlockingQueue<UpdateItemRequest> updateQueue,
-			DynamoDbClient dynamo) {
+			DynamoDbClient dynamo, Vector<Integer> counterVector) {
 		queue = updateQueue;
 		client = dynamo;
+		this.counterVector = counterVector;
 	}
 
 	public void stop() {
@@ -36,6 +39,6 @@ public class UpdateTask implements Runnable {
 		}
 		System.out.println("Thread " + Thread.currentThread().getId()
 				+ " stopping after " + count + " updates");
+		counterVector.add(Integer.valueOf(count));
 	}
-
 }

@@ -20,7 +20,7 @@ public class Main {
 		Instant finish = Instant.now();
 		System.out.println("Time = "
 				+ Duration.between(start, finish).toMillis());
-		System.out.println("Total aggregated items: " + db.mapSize());
+		db.count();
 	}
 
 }
