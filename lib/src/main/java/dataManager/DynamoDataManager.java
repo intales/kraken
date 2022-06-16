@@ -62,7 +62,7 @@ public class DynamoDataManager implements DataManager {
 	public void shutdown() {
 		executor.shutdown();
 		try {
-			while (!executor.awaitTermination(10, TimeUnit.SECONDS))
+			while (!executor.awaitTermination(1, TimeUnit.SECONDS))
 				System.out.println("Not terminated");
 		} catch (InterruptedException e) {
 			e.printStackTrace();

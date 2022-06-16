@@ -10,8 +10,9 @@ import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 public class UpdateTask implements Runnable {
 	private LinkedBlockingQueue<UpdateItemRequest> queue;
 	private DynamoDbClient client;
-	private final AtomicBoolean running = new AtomicBoolean(false);
+	private final AtomicBoolean running = new AtomicBoolean(true);
 	private Vector<Integer> counterVector;
+
 	public UpdateTask(
 			LinkedBlockingQueue<UpdateItemRequest> updateQueue,
 			DynamoDbClient dynamo, Vector<Integer> counterVector) {
@@ -27,7 +28,6 @@ public class UpdateTask implements Runnable {
 	@Override
 	public void run() {
 		int count = 0;
-		running.set(true);
 		while (running.get()) {
 			while (!queue.isEmpty()) {
 				UpdateItemRequest request = queue.poll();
