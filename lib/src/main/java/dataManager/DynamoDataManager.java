@@ -62,7 +62,7 @@ public class DynamoDataManager implements DataManager {
 	public void shutdown() {
 		executor.shutdown();
 		try {
-			while (!executor.awaitTermination(1, TimeUnit.SECONDS))
+			while (!executor.awaitTermination(10, TimeUnit.SECONDS))
 				System.out.println("Not terminated");
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -81,6 +81,7 @@ public class DynamoDataManager implements DataManager {
 					counterVector);
 			// Execute the task
 			executor.execute(task);
+			// Add to the array of task
 			taskArray.add(task);
 		}
 
@@ -89,9 +90,7 @@ public class DynamoDataManager implements DataManager {
 			Interaction key = entry.getKey();
 			InteractionData val = entry.getValue();
 
-			Map<String, AttributeValue> keyMap = new HashMap<>();
-			keyMap.put("fromID", AttributeValue.fromS(key.fromID));
-			keyMap.put("toID", AttributeValue.fromS(key.toID));
+			Map<String, AttributeValue> keyMap = key.getMap();
 
 			Map<String, AttributeValue> attributesMap = new HashMap<>();
 

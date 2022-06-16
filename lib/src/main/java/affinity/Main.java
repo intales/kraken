@@ -19,7 +19,7 @@ public class Main {
 		db.shutdown();
 		Instant finish = Instant.now();
 		System.out.println("Time = "
-				+ Duration.between(start, finish).toMillis());
+				+ Duration.between(start, finish).toMillis() + " ms");
 		db.count();
 	}
 

@@ -1,12 +1,24 @@
 package affinity;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+
 public class Interaction {
-	public String fromID;
-	public String toID;
+	String fromID;
+	String toID;
 
 	public Interaction(String from, String to) {
 		fromID = from;
 		toID = to;
+	}
+
+	public Map<String, AttributeValue> getMap() {
+		Map<String, AttributeValue> map = new HashMap<>();
+		map.put("fromID", AttributeValue.fromS(fromID));
+		map.put("toID", AttributeValue.fromS(toID));
+		return map;
 	}
 
 	@Override

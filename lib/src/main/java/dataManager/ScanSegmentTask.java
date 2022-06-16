@@ -52,16 +52,15 @@ public class ScanSegmentTask implements Runnable {
 				List<Map<String, AttributeValue>> items = scanResponse
 						.items();
 				totalScannedItemCount += items.size();
-
 				String from, to;
 				for (Map<String, AttributeValue> item : items) {
 					from = item.get(field).s();
 					to = item.get("toID").s();
-					if ((!from.equals(to))) {
-						Interaction interaction = new Interaction(
-								from, to);
-						add(interaction);
-					}
+					if (from.equals(to))
+						continue;
+					Interaction interaction = new Interaction(from,
+							to);
+					add(interaction);
 				}
 				mapStartKey = scanResponse.hasLastEvaluatedKey()
 						? scanResponse.lastEvaluatedKey()
@@ -77,27 +76,28 @@ public class ScanSegmentTask implements Runnable {
 	}
 
 	private void add(Interaction interaction) {
-		InteractionData val = map.get(interaction);
-		if (val == null) {
-			val = new InteractionData();
-			map.put(interaction, val);
-		}
-		switch (type) {
-			case like : {
-				val.likes++;
-				break;
+		map.compute(interaction, (key, value) -> {
+			if (value == null) {
+				value = new InteractionData();
 			}
-			case comment : {
-				val.comments++;
-				break;
+			switch (type) {
+				case like : {
+					value.likes++;
+					break;
+				}
+				case comment : {
+					value.comments++;
+					break;
+				}
+				case collaboration : {
+					value.collaborations++;
+					break;
+				}
+				default :
+					throw new IllegalArgumentException(
+							"Unexpected value: " + type);
 			}
-			case collaboration : {
-				val.collaborations++;
-				break;
-			}
-			default :
-				throw new IllegalArgumentException(
-						"Unexpected value: " + type);
-		}
+			return value;
+		});
 	}
 }
