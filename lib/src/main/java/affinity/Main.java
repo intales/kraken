@@ -21,6 +21,7 @@ public class Main {
 		System.out.println("Time = "
 				+ Duration.between(start, finish).toMillis() + " ms");
 		db.count();
+
 	}
 
 }

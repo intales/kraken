@@ -16,6 +16,21 @@ repositories {
     mavenCentral()
 }
 
+version = '1.0'
+
+//create a single Jar with all dependencies
+task fatJar(type: Jar) {
+	manifest {
+        attributes 'Implementation-Title': 'Gradle Jar File',  
+        	'Implementation-Version': archiveVersion,
+        	'Main-Class': 'affinity.Main'
+    }
+    archiveBaseName = project.name + '-all'
+    duplicatesStrategy DuplicatesStrategy.EXCLUDE
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
 dependencies {
     // Use JUnit Jupiter for testing.
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'
@@ -30,6 +45,13 @@ dependencies {
 	implementation platform('software.amazon.awssdk:bom:2.17.210')
  	implementation 'software.amazon.awssdk:dynamodb'
 
+	// https://mvnrepository.com/artifact/org.slf4j/slf4j-api
+	// SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+	implementation 'org.slf4j:slf4j-api:1.7.36'
+	
+	// https://mvnrepository.com/artifact/org.slf4j/slf4j-simple
+	implementation 'org.slf4j:slf4j-jdk14:1.7.36'
+	
 }
 
 tasks.named('test') {

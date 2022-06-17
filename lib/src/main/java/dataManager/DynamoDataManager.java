@@ -19,20 +19,18 @@ import affinity.InteractionData;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 public class DynamoDataManager implements DataManager {
+	int numberOfThreads = 8;
 	String interactionTableName;
 	Region region;
 	AwsCredentialsProvider credentialsProvider;
-	int numberOfThreads = 8;
 	ExecutorService executor;
-	ConcurrentHashMap<Interaction, InteractionData> map;
 	DynamoDbClient client;
-	DynamoDbAsyncClient clientAsync;
+	ConcurrentHashMap<Interaction, InteractionData> map;
 	LinkedBlockingQueue<UpdateItemRequest> updateQueue;
 	Vector<Integer> counterVector;
 
@@ -51,10 +49,6 @@ public class DynamoDataManager implements DataManager {
 		counterVector = new Vector<>();
 
 		client = DynamoDbClient.builder()
-				.credentialsProvider(credentialsProvider)
-				.region(region).build();
-
-		clientAsync = DynamoDbAsyncClient.builder()
 				.credentialsProvider(credentialsProvider)
 				.region(region).build();
 	}
@@ -122,19 +116,16 @@ public class DynamoDataManager implements DataManager {
 		for (Entry<Interaction, InteractionData> entry : map
 				.entrySet()) {
 			InteractionData val = entry.getValue();
-			l += val.likes;
-			cm += val.comments;
-			cl += val.collaborations;
+			l += val.getLikes();
+			cm += val.getComments();
+			cl += val.getCollaborations();
 		}
 		System.out.println("likes = " + l);
 		System.out.println("comments = " + cm);
 		System.out.println("collaborations = " + cl);
 		System.out.println(
 				"count vector size = " + counterVector.size());
-		Integer c = 0;
-		for (Integer integer : counterVector) {
-			c += integer;
-		}
+		Integer c = counterVector.stream().mapToInt(i -> i).sum();
 		System.out.println("Total updates = " + c);
 		System.out.println("Total aggregated items = " + map.size());
 		if (map.size() != c)

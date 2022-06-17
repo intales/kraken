@@ -80,23 +80,7 @@ public class ScanSegmentTask implements Runnable {
 			if (value == null) {
 				value = new InteractionData();
 			}
-			switch (type) {
-				case like : {
-					value.likes++;
-					break;
-				}
-				case comment : {
-					value.comments++;
-					break;
-				}
-				case collaboration : {
-					value.collaborations++;
-					break;
-				}
-				default :
-					throw new IllegalArgumentException(
-							"Unexpected value: " + type);
-			}
+			value.increment(type);
 			return value;
 		});
 	}
