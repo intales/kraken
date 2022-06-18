@@ -52,10 +52,10 @@ public class ScanSegmentTask implements Runnable {
 				List<Map<String, AttributeValue>> items = scanResponse
 						.items();
 				totalScannedItemCount += items.size();
-				String from, to;
+				AttributeValue from, to;
 				for (Map<String, AttributeValue> item : items) {
-					from = item.get(field).s();
-					to = item.get("toID").s();
+					from = item.get(field);
+					to = item.get("toID");
 					if (from.equals(to))
 						continue;
 					Interaction interaction = new Interaction(from,

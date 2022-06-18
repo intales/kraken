@@ -6,18 +6,18 @@ import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 public class Interaction {
-	String fromID;
-	String toID;
+	AttributeValue fromID;
+	AttributeValue toID;
 
-	public Interaction(String from, String to) {
+	public Interaction(AttributeValue from, AttributeValue to) {
 		fromID = from;
 		toID = to;
 	}
 
 	public Map<String, AttributeValue> getMap() {
 		Map<String, AttributeValue> map = new HashMap<>();
-		map.put("fromID", AttributeValue.fromS(fromID));
-		map.put("toID", AttributeValue.fromS(toID));
+		map.put("fromID", fromID);
+		map.put("toID", toID);
 		return map;
 	}
 
