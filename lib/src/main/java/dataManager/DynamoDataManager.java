@@ -24,11 +24,10 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 public class DynamoDataManager implements DataManager {
-	int numberOfThreads = 8;
+	ExecutorService executor = null;
 	String interactionTableName;
 	Region region;
 	AwsCredentialsProvider credentialsProvider;
-	ExecutorService executor;
 	DynamoDbClient client;
 	ConcurrentHashMap<Interaction, InteractionData> map;
 	LinkedBlockingQueue<UpdateItemRequest> updateQueue;
@@ -43,14 +42,16 @@ public class DynamoDataManager implements DataManager {
 		this.region = region;
 		this.interactionTableName = interactionTableName;
 		credentialsProvider = ProfileCredentialsProvider.create();
-		executor = Executors.newFixedThreadPool(numberOfThreads);
 		map = new ConcurrentHashMap<>();
 		updateQueue = new LinkedBlockingQueue<>();
 		counterVector = new Vector<>();
-
 		client = DynamoDbClient.builder()
 				.credentialsProvider(credentialsProvider)
 				.region(region).build();
+	}
+
+	private ExecutorService initThreadPool(int numberOfThreads) {
+		return Executors.newFixedThreadPool(numberOfThreads);
 	}
 
 	public void shutdown() {
@@ -66,8 +67,8 @@ public class DynamoDataManager implements DataManager {
 	}
 
 	public void updateInteraction() {
-		numberOfThreads = 2 << 5;
-		executor = Executors.newFixedThreadPool(numberOfThreads);
+		int numberOfThreads = 2 << 5;
+		executor = initThreadPool(numberOfThreads);
 		List<UpdateTask> taskArray = new ArrayList<>();
 		for (int thread = 0; thread < numberOfThreads; thread++) {
 			// Runnable task that will only scan one segment
@@ -137,7 +138,7 @@ public class DynamoDataManager implements DataManager {
 	public DataManager getLikes() {
 		String likesTableName = "Like-lgwgf74xczh3jddacdgxrh7smy-test";
 		String field = "likeUserId";
-		addThreads(likesTableName, field, InteracionType.like);
+		addThreads(likesTableName, field, InteracionType.like, 8);
 		return this;
 	}
 
@@ -160,6 +161,13 @@ public class DynamoDataManager implements DataManager {
 
 	private void addThreads(String tableName, String field,
 			InteracionType type) {
+		addThreads(tableName, field, type, 1);
+	};
+
+	private void addThreads(String tableName, String field,
+			InteracionType type, int numberOfThreads) {
+		if (executor == null)
+			executor = initThreadPool(numberOfThreads);
 		for (int thread = 0; thread < numberOfThreads; thread++) {
 			// Runnable task that will only scan one segment
 			ScanSegmentTask task = new ScanSegmentTask(tableName,

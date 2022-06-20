@@ -37,8 +37,9 @@ public class UpdateTask implements Runnable {
 				}
 			}
 		}
-		System.out.println("Thread\t" + Thread.currentThread().getId()
-				+ "\tstopping after\t" + count + " updates");
+
+		// System.out.println("Thread\t" + Thread.currentThread().getId()
+		// + "\tstopping after\t" + count + " updates");
 		counterVector.add(Integer.valueOf(count));
 	}
 }

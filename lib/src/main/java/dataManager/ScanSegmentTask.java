@@ -36,14 +36,16 @@ public class ScanSegmentTask implements Runnable {
 
 	@Override
 	public void run() {
-		int totalScannedItemCount = 0;
+		int totalScannedItemCount = 0, cycle = 0;
 		try {
 			Map<String, AttributeValue> mapStartKey = null;
 			do {
 				ScanRequest scanRequest = ScanRequest.builder()
 						.tableName(tableName)
 						// .limit(2000)
-						.filterExpression("attribute_exists(toID)")
+						.filterExpression(
+								"attribute_exists(toID) AND " + field
+										+ " <> toID")
 						.exclusiveStartKey(mapStartKey)
 						.segment(thread)
 						.totalSegments(numberOfThreads).build();
@@ -56,8 +58,6 @@ public class ScanSegmentTask implements Runnable {
 				for (Map<String, AttributeValue> item : items) {
 					from = item.get(field);
 					to = item.get("toID");
-					if (from.equals(to))
-						continue;
 					Interaction interaction = new Interaction(from,
 							to);
 					add(interaction);
@@ -65,13 +65,15 @@ public class ScanSegmentTask implements Runnable {
 				mapStartKey = scanResponse.hasLastEvaluatedKey()
 						? scanResponse.lastEvaluatedKey()
 						: null;
+				cycle++;
 			} while (mapStartKey != null);
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
 		} finally {
 			System.out.println("Scanned " + totalScannedItemCount
-					+ " items from segment " + thread + " out of "
-					+ numberOfThreads + " of " + tableName);
+					+ " items in " + cycle + " cycles from segment "
+					+ thread + "/" + numberOfThreads + " of "
+					+ tableName);
 		}
 	}
 

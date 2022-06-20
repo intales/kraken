@@ -10,7 +10,7 @@ public class Main {
 	public Main() {
 	}
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String... args) {
 		DynamoDataManager db = new DynamoDataManager();
 		Instant start = Instant.now();
 		db.getLikes().getComments().getCollaborations();
