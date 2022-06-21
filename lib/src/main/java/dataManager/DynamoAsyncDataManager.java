@@ -2,12 +2,17 @@ package dataManager;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import affinity.InteracionType;
 import affinity.Interaction;
@@ -23,14 +28,15 @@ import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 public class DynamoAsyncDataManager implements DataManager {
 	private static final String interactionTableName = "Interaction-lgwgf74xczh3jddacdgxrh7smy-test";
 	DynamoDbAsyncClient client;
-	ConcurrentHashMap<Interaction, InteractionData> map;
+	List<InteractionContainer> data;
+	Map<Interaction, InteractionData> map;
 
 	public DynamoAsyncDataManager() {
 		client = DynamoDbAsyncClient.builder()
 				.region(Region.EU_CENTRAL_1).credentialsProvider(
 						ProfileCredentialsProvider.create())
 				.build();
-		map = new ConcurrentHashMap<>();
+		data = new ArrayList<>();
 	}
 
 	private void scan(String field, InteracionType type,
@@ -39,7 +45,8 @@ public class DynamoAsyncDataManager implements DataManager {
 		do {
 			ScanRequest request = ScanRequest.builder()
 					.tableName(table)
-					.filterExpression("attribute_exists(toID)")
+					.filterExpression("attribute_exists(toID) AND "
+							+ field + " <> toID")
 					.exclusiveStartKey(mapStartKey).build();
 			CompletableFuture<ScanResponse> responseFuture = client
 					.scan(request);
@@ -47,57 +54,71 @@ public class DynamoAsyncDataManager implements DataManager {
 			mapStartKey = response.hasLastEvaluatedKey()
 					? response.lastEvaluatedKey()
 					: null;
-			System.out.println("retrived " + response.items().size());
-			response.items().parallelStream().forEach(item -> {
-				AttributeValue from = item.get(field),
-						to = item.get("toID");
-				if (from.equals(to))
-					return;
-				Interaction interaction = new Interaction(from, to);
-				map.compute(interaction, (key, value) -> {
-					if (value == null) {
-						value = new InteractionData();
-					}
-					value.increment(type);
-					return value;
-				});
-				return;
-			});
+			data.addAll(
+					response.items().parallelStream().map(item -> {
+						AttributeValue from = item.get(field),
+								to = item.get("toID");
+						Interaction interaction = new Interaction(
+								from, to);
+						InteractionData interactionData = new InteractionData();
+						interactionData.increment(type);
+						InteractionContainer interactionContainer = new InteractionContainer();
+						interactionContainer.interaction = interaction;
+						interactionContainer.interactionData = interactionData;
+						return interactionContainer;
+					}).toList());
 		} while (mapStartKey != null);
 	}
 
+	private void update(Interaction key, InteractionData value) {
+		Map<String, AttributeValue> keyMap = key.getMap();
+		Map<String, AttributeValue> attributesMap = new HashMap<>();
+		// createdAt
+		attributesMap.put(":c", AttributeValue
+				.fromS(new Date().toInstant().toString()));
+		// updatedAt
+		attributesMap.put(":u", AttributeValue
+				.fromS(new Date().toInstant().toString()));
+		attributesMap.putAll(value.getMap());
+
+		String expression = "SET updatedAt = :u, createdAt = if_not_exists(createdAt, :c), ";
+		expression += "likes = :l, comments = :cm, collaborations = :cl";
+		UpdateItemRequest updateRequestItem = UpdateItemRequest
+				.builder().tableName(interactionTableName).key(keyMap)
+				.expressionAttributeValues(attributesMap)
+				.updateExpression(expression).build();
+		client.updateItem(updateRequestItem).join();
+	}
+
 	public void aggregate() {
-		map.entrySet().parallelStream().forEach(item -> {
-			Interaction key = item.getKey();
-			InteractionData value = item.getValue();
-			Map<String, AttributeValue> keyMap = key.getMap();
-
-			Map<String, AttributeValue> attributesMap = new HashMap<>();
-			// createdAt
-			attributesMap.put(":c", AttributeValue
-					.fromS(new Date().toInstant().toString()));
-			// updatedAt
-			attributesMap.put(":u", AttributeValue
-					.fromS(new Date().toInstant().toString()));
-			attributesMap.putAll(value.getMap());
-
-			String expression = "SET updatedAt = :u, createdAt = if_not_exists(createdAt, :c), ";
-			expression += "likes = :l, comments = :cm, collaborations = :cl";
-			UpdateItemRequest updateRequestItem = UpdateItemRequest
-					.builder().tableName(interactionTableName)
-					.key(keyMap)
-					.expressionAttributeValues(attributesMap)
-					.updateExpression(expression).build();
-			try {
-				client.updateItem(updateRequestItem).get();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (ExecutionException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		});
+		ExecutorService executor = Executors.newFixedThreadPool(32);
+		map = data.parallelStream().reduce(
+				new ConcurrentHashMap<Interaction, InteractionData>(),
+				(hashMap, element) -> {
+					hashMap.computeIfPresent(element.interaction,
+							(key, val) -> {
+								val.increment(
+										element.interactionData);
+								return val;
+							});
+					hashMap.computeIfAbsent(element.interaction,
+							val -> {
+								return element.interactionData;
+							});
+					return hashMap;
+				}, (m1, m2) -> {
+					m1.putAll(m2);
+					return m1;
+				});
+		executor.submit(() -> map.entrySet().parallelStream()
+				.forEach(t -> update(t.getKey(), t.getValue())));
+		executor.shutdown();
+		try {
+			while (!executor.awaitTermination(1, TimeUnit.SECONDS))
+				System.out.println("WAIT");
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -139,6 +160,23 @@ public class DynamoAsyncDataManager implements DataManager {
 	}
 
 	private void count() {
-		System.out.println("Total aggregated = " + map.size());
+		int l = 0, cm = 0, cl = 0;
+		for (Entry<Interaction, InteractionData> entry : map
+				.entrySet()) {
+			InteractionData val = entry.getValue();
+			l += val.getLikes();
+			cm += val.getComments();
+			cl += val.getCollaborations();
+		}
+		System.out.println("likes = " + l);
+		System.out.println("comments = " + cm);
+		System.out.println("collaborations = " + cl);
+
+		System.out.println("Total aggregated items = " + map.size());
+	}
+
+	private class InteractionContainer {
+		public Interaction interaction;
+		public InteractionData interactionData;
 	}
 }

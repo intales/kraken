@@ -6,9 +6,9 @@ import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 public class InteractionData {
-	int likes;
-	int comments;
-	int collaborations;
+	private int likes;
+	private int comments;
+	private int collaborations;
 
 	public InteractionData() {
 		likes = 0;
@@ -49,6 +49,12 @@ public class InteractionData {
 				throw new IllegalArgumentException(
 						"Unexpected value: " + type);
 		}
+	}
+
+	public void increment(InteractionData other) {
+		likes += other.getLikes();
+		comments += other.getComments();
+		collaborations += other.getCollaborations();
 	}
 
 	public int getLikes() {
