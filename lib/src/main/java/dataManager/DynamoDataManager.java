@@ -1,10 +1,7 @@
 package dataManager;
 
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Collections;
 import java.util.Map.Entry;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,7 +17,6 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 public class DynamoDataManager implements DataManager {
@@ -57,7 +53,8 @@ public class DynamoDataManager implements DataManager {
 	public void shutdown() {
 		executor.shutdown();
 		try {
-			while (!executor.awaitTermination(10, TimeUnit.SECONDS))
+			while (!executor.awaitTermination(1000,
+					TimeUnit.MILLISECONDS))
 				System.out.println("Not terminated");
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -69,46 +66,14 @@ public class DynamoDataManager implements DataManager {
 	public void updateInteraction() {
 		int numberOfThreads = 2 << 5;
 		executor = initThreadPool(numberOfThreads);
-		List<UpdateTask> taskArray = new ArrayList<>();
+		ArrayList<Interaction> list = Collections.list(map.keys());
 		for (int thread = 0; thread < numberOfThreads; thread++) {
 			// Runnable task that will only scan one segment
-			UpdateTask task = new UpdateTask(updateQueue, client,
-					counterVector);
+			UpdateTask task = new UpdateTask(list, client,
+					counterVector, thread, numberOfThreads, map,
+					interactionTableName);
 			// Execute the task
 			executor.execute(task);
-			// Add to the array of task
-			taskArray.add(task);
-		}
-
-		for (Entry<Interaction, InteractionData> entry : map
-				.entrySet()) {
-			Interaction key = entry.getKey();
-			InteractionData val = entry.getValue();
-
-			Map<String, AttributeValue> keyMap = key.getMap();
-
-			Map<String, AttributeValue> attributesMap = new HashMap<>();
-
-			// createdAt
-			attributesMap.put(":c", AttributeValue
-					.fromS(new Date().toInstant().toString()));
-			// updatedAt
-			attributesMap.put(":u", AttributeValue
-					.fromS(new Date().toInstant().toString()));
-			attributesMap.putAll(val.getMap());
-
-			String expression = "SET updatedAt = :u, createdAt = if_not_exists(createdAt, :c), ";
-			expression += "likes = :l, comments = :cm, collaborations = :cl";
-			UpdateItemRequest updateRequestItem = UpdateItemRequest
-					.builder().tableName(interactionTableName)
-					.key(keyMap)
-					.expressionAttributeValues(attributesMap)
-					.updateExpression(expression).build();
-			updateQueue.add(updateRequestItem);
-		}
-		System.out.println("All elements added to queue");
-		for (UpdateTask updateTask : taskArray) {
-			updateTask.stop();
 		}
 	}
 
