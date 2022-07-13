@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>Affinity</name>
-	<comment>Project Affinity created by Buildship.</comment>
+	<name>Kraken</name>
+	<comment>Project Kraken: retrive and aggregate data.</comment>
 	<projects>
 	</projects>
 	<buildSpec>
