@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import config.Configuration;
 import config.YAML;
+import dynamodb.DynamoDB;
 
 public class Main {
 
@@ -17,7 +18,6 @@ public class Main {
 				yamlFile.append(arg.substring(equalIndex+1));
 			}
 		}
-		System.out.println(yamlFile);
 	}
 	
 	public static void main(String ... args) {
@@ -26,19 +26,20 @@ public class Main {
 		argsCheck(defaultYamlFile, args);
 		
 		// Step 1: read configuration file
-		Configuration configuration;
+		Configuration configuration = null;
 		try {
 			configuration = YAML.getConfiguration(defaultYamlFile.toString());
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
+		DataManager dynamo = new DynamoDB(configuration);
 		
 		// Step 2: scan and aggregate data
-		
-		
+		dynamo.scan();
 		// Step 3: update table
-		
+		dynamo.update();
 		
 	}
 
