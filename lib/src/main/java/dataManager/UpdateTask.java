@@ -39,6 +39,8 @@ public class UpdateTask implements Runnable {
 	public void run() {
 		int count = 0;
 		Map<String, AttributeValue> attributesMap = new HashMap<>();
+		// zero because Dynamodb
+		attributesMap.put(":zero", AttributeValue.fromN("0"));
 		for (int i = thread; i < data.size(); i += total, count++) {
 			Interaction key = data.get(i);
 			InteractionData val = map.get(key);
@@ -51,10 +53,12 @@ public class UpdateTask implements Runnable {
 			// updatedAt
 			attributesMap.put(":u", AttributeValue
 					.fromS(new Date().toInstant().toString()));
+
 			attributesMap.putAll(val.getMap());
 
 			String expression = "SET updatedAt = :u, createdAt = if_not_exists(createdAt, :c), ";
-			expression += "likes = :l, comments = :cm, collaborations = :cl";
+			expression += "likes = :l, comments = :cm, collaborations = :cl ";
+			expression += "ADD follows :zero";
 			UpdateItemRequest updateRequestItem = UpdateItemRequest
 					.builder().tableName(interactionTableName)
 					.key(keyMap)

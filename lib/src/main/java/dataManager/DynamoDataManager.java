@@ -124,6 +124,7 @@ public class DynamoDataManager implements DataManager {
 		return this;
 	}
 
+	@SuppressWarnings("unused")
 	private void addThreads(String tableName, String field,
 			InteracionType type) {
 		addThreads(tableName, field, type, 1);

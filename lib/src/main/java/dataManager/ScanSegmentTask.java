@@ -42,7 +42,7 @@ public class ScanSegmentTask implements Runnable {
 			do {
 				ScanRequest scanRequest = ScanRequest.builder()
 						.tableName(tableName)
-						// .limit(2000)
+						// .limit(1000)
 						.filterExpression(
 								"attribute_exists(toID) AND " + field
 										+ " <> toID")
@@ -74,6 +74,10 @@ public class ScanSegmentTask implements Runnable {
 					+ " items in " + cycle + " cycles from segment "
 					+ thread + "/" + numberOfThreads + " of "
 					+ tableName);
+			if (cycle > 1)
+				System.out.println(tableName
+						+ " could increment the toal threads to "
+						+ numberOfThreads * 2);
 		}
 	}
 
