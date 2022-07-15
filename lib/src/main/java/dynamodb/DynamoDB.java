@@ -1,5 +1,7 @@
 package dynamodb;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,6 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import config.Configuration;
 import config.TableConfiguration;
@@ -24,6 +27,7 @@ public class DynamoDB implements DataManager {
 	DynamoDbClient client;
 	ExecutorService executor = null;
 	Vector<Integer> counterVector;
+	private Map<Interaction, UpdateData> data = null;
 
 	public DynamoDB(Configuration configuration) {
 		this(configuration, Region.EU_CENTRAL_1);
@@ -40,11 +44,11 @@ public class DynamoDB implements DataManager {
 	private Map<Interaction, UpdateData> scanTable(TableConfiguration tableConfiguration) {
 		// in order to scan a dynamodb table
 		// the table name, field, type and threads number must be retrieved
-		int total = tableConfiguration.getThreads();
+		int totalThreads = tableConfiguration.getThreads();
 		Vector<Future<Vector<Interaction>>> tasksList = new Vector<>();
-		for (int i = 0; i < total; i++) {
-			ScanSegmentTask scanSegmentTask = new ScanSegmentTask(client, i, total, tableConfiguration.getName(),
-					tableConfiguration.getField());
+		for (int thread = 0; thread < totalThreads; thread++) {
+			ScanSegmentTask scanSegmentTask = new ScanSegmentTask(client, thread, totalThreads,
+					tableConfiguration.getName(), tableConfiguration.getField());
 			Future<Vector<Interaction>> future = executor.submit(scanSegmentTask);
 			tasksList.add(future);
 		}
@@ -54,7 +58,7 @@ public class DynamoDB implements DataManager {
 				.parallel()
 				.map(DynamoDB::handleFuture)
 				.reduce(initValue,
-						(accumulator, current) -> accumulate(accumulator, current, tableConfiguration.getTypename()),
+						(accumulator, current) -> accumulate(accumulator, current, tableConfiguration.getKey()),
 						DynamoDB::combineMaps);
 	}
 
@@ -62,24 +66,32 @@ public class DynamoDB implements DataManager {
 	public void scan() {
 		executor = initThreadPool();
 		Map<Interaction, UpdateData> initValue = new ConcurrentHashMap<>();
-		Map<Interaction, UpdateData> result = configuration
+		data = configuration
 				.getTableConfigurations()
 				.stream()
 				.parallel()
 				.map(table -> scanTable(table))
 				.reduce(initValue, DynamoDB::combineMaps);
-		System.out.println("total = " + result.size());
+		System.out.println("Total aggregated data = " + data.size());
 		shutdown();
 	}
 
 	@Override
 	public void update() {
-		// TODO Auto-generated method stub
+		executor = initThreadPool();
+		ArrayList<Interaction> keys = Collections.list(((ConcurrentHashMap<Interaction, UpdateData>) data).keys());
+		int totalThreads = configuration.getUpdateThreads();
+		Map<String, String> keyTypeMap = configuration
+				.getTableConfigurations()
+				.stream()
+				.collect(Collectors.toMap(TableConfiguration::getKey, TableConfiguration::getTypename));
 
-	}
-
-	private ExecutorService initThreadPool() {
-		return Executors.newCachedThreadPool();
+		for (int thread = 0; thread < totalThreads; thread++) {
+			UpdateTask task = new UpdateTask(keys, data, client, counterVector, thread, totalThreads,
+					configuration.getUpdateTable(), keyTypeMap);
+			executor.execute(task);
+		}
+		shutdown();
 	}
 
 	public void shutdown() {
@@ -91,7 +103,12 @@ public class DynamoDB implements DataManager {
 			e.printStackTrace();
 		} finally {
 			System.out.println("Terminated");
+			executor = null;
 		}
+	}
+
+	private static ExecutorService initThreadPool() {
+		return Executors.newCachedThreadPool();
 	}
 
 	private static Map<Interaction, UpdateData> accumulate(Map<Interaction, UpdateData> previous,

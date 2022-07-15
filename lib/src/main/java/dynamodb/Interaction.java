@@ -1,5 +1,7 @@
 package dynamodb;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -11,6 +13,15 @@ public class Interaction {
 	public Interaction(AttributeValue from, AttributeValue to) {
 		fromID = from;
 		toID = to;
+	}
+
+	public Map<String, AttributeValue> getMap() {
+		Map<String, AttributeValue> map = new HashMap<>();
+
+		map.put("fromID", fromID);
+		map.put("toID", toID);
+
+		return map;
 	}
 
 	@Override
@@ -32,6 +43,6 @@ public class Interaction {
 
 	@Override
 	public String toString() {
-		return "Interaction [fromID=" + fromID + ", toID=" + toID + "]";
+		return fromID + ", " + toID + ", ";
 	}
 }
