@@ -37,36 +37,6 @@ public class DynamoDB implements DataManager {
 		client = DynamoDbClient.builder().credentialsProvider(credentialsProvider).region(region).build();
 	}
 
-	private Map<Interaction, UpdateData> accumulate(Map<Interaction, UpdateData> previous,
-			Future<Vector<Interaction>> current, String type) {
-		try {
-			Vector<Interaction> interactions = current.get();
-			interactions.stream().forEach(i -> {
-				previous.computeIfPresent(i, (key, value) -> {
-					value.increment(type);
-					return value;
-				});
-				previous.computeIfAbsent(i, t -> new UpdateData(type));
-			});
-			return previous;
-		} catch (InterruptedException | ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return previous;
-		}
-	}
-
-	private Map<Interaction, UpdateData> combine(Map<Interaction, UpdateData> first,
-			Map<Interaction, UpdateData> second) {
-		if (first.equals(second)) {
-			System.err.println("EQUALS");
-			return first;
-		} else {
-			System.err.println("NOT EQUALS");
-			return pippo(first, second);
-		}
-	}
-
 	private Map<Interaction, UpdateData> scanTable(TableConfiguration tableConfiguration) {
 		// in order to scan a dynamodb table
 		// the table name, field, type and threads number must be retrieved
@@ -82,17 +52,10 @@ public class DynamoDB implements DataManager {
 		return tasksList
 				.stream()
 				.parallel()
-				.reduce(initValue, (acc, elem) -> accumulate(acc, elem, tableConfiguration.getTypename()),
-						(first, second) -> combine(first, second));
-	}
-
-	public static Map<Interaction, UpdateData> pippo(Map<Interaction, UpdateData> prev,
-			Map<Interaction, UpdateData> curr) {
-		for (Interaction key : curr.keySet()) {
-			prev.computeIfPresent(key, (k, value) -> value.merge(curr.get(key)));
-			prev.computeIfAbsent(key, t -> curr.get(key));
-		}
-		return prev;
+				.map(DynamoDB::handleFuture)
+				.reduce(initValue,
+						(accumulator, current) -> accumulate(accumulator, current, tableConfiguration.getTypename()),
+						DynamoDB::combineMaps);
 	}
 
 	@Override
@@ -104,7 +67,7 @@ public class DynamoDB implements DataManager {
 				.stream()
 				.parallel()
 				.map(table -> scanTable(table))
-				.reduce(initValue, DynamoDB::pippo);
+				.reduce(initValue, DynamoDB::combineMaps);
 		System.out.println("total = " + result.size());
 		shutdown();
 	}
@@ -129,5 +92,31 @@ public class DynamoDB implements DataManager {
 		} finally {
 			System.out.println("Terminated");
 		}
+	}
+
+	private static Map<Interaction, UpdateData> accumulate(Map<Interaction, UpdateData> previous,
+			Vector<Interaction> current, String type) {
+		if (current == null)
+			return previous;
+		current.stream().forEach(interaction -> {
+			previous.merge(interaction, new UpdateData(type), UpdateData::merge);
+		});
+		return previous;
+	}
+
+	private static <T> T handleFuture(Future<T> future) {
+		try {
+			return future.get();
+		} catch (InterruptedException | ExecutionException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	public static <T> Map<T, UpdateData> combineMaps(Map<T, UpdateData> prev, Map<T, UpdateData> curr) {
+		if (prev.equals(curr))
+			return prev;
+		curr.forEach((key, value) -> prev.merge(key, value, UpdateData::merge));
+		return prev;
 	}
 }

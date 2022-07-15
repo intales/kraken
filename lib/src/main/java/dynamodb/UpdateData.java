@@ -28,12 +28,11 @@ public class UpdateData {
 		attributesMap.put(key, value);
 	}
 
-	public UpdateData merge(UpdateData other) {
-		for (String key : other.attributesMap.keySet()) {
-			Integer value = other.attributesMap.get(key);
-			add(key, value);
-		}
-		return this;
+	public static UpdateData merge(UpdateData first, UpdateData second) {
+		first.attributesMap.forEach((key, value) -> {
+			second.attributesMap.merge(key, value, Integer::sum);
+		});
+		return second;
 	}
 
 	@Override

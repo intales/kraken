@@ -1,6 +1,8 @@
 package main;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 
 import config.Configuration;
 import config.YAML;
@@ -35,11 +37,13 @@ public class Main {
 		}
 
 		DataManager dynamo = new DynamoDB(configuration);
-
+		Instant start = Instant.now();
 		// Step 2: scan and aggregate data
 		dynamo.scan();
 		// Step 3: update table
 		dynamo.update();
+		Instant finish = Instant.now();
+		System.out.println("Time = " + Duration.between(start, finish).toMillis() + " ms");
 	}
 
 }
