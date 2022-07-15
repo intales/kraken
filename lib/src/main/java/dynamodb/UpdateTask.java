@@ -3,6 +3,7 @@ package dynamodb;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
@@ -20,10 +21,12 @@ public class UpdateTask implements Runnable {
 	private Map<Interaction, UpdateData> map;
 	private String interactionTableName;
 	private Map<String, String> keyTypeMap;
+	private Map<String, List<String>> operations;
+	private String affinityKey;
 
 	public UpdateTask(ArrayList<Interaction> keys, Map<Interaction, UpdateData> map, DynamoDbClient client,
 			Vector<Integer> counterVector, int thread, int totalThreads, String interactionTableName,
-			Map<String, String> keyTypeMap) {
+			Map<String, String> keyTypeMap, Map<String, List<String>> operations, String affinityKey) {
 		super();
 		this.client = client;
 		this.counterVector = counterVector;
@@ -33,6 +36,8 @@ public class UpdateTask implements Runnable {
 		this.map = map;
 		this.interactionTableName = interactionTableName;
 		this.keyTypeMap = keyTypeMap;
+		this.operations = operations;
+		this.affinityKey = affinityKey;
 	}
 
 	@Override
@@ -46,6 +51,7 @@ public class UpdateTask implements Runnable {
 
 			Map<String, AttributeValue> keyMap = key.getMap();
 
+			value.computeAffinity(operations, affinityKey);
 			attributesMap.putAll(value.getMap());
 
 			// createdAt
@@ -64,6 +70,7 @@ public class UpdateTask implements Runnable {
 					.expressionAttributeValues(attributesMap)
 					.updateExpression(expression)
 					.build();
+
 			client.updateItem(updateRequestItem);
 
 			attributesMap.clear();

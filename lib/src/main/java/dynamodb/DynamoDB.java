@@ -2,6 +2,7 @@ package dynamodb;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
@@ -81,17 +82,26 @@ public class DynamoDB implements DataManager {
 		executor = initThreadPool();
 		ArrayList<Interaction> keys = Collections.list(((ConcurrentHashMap<Interaction, UpdateData>) data).keys());
 		int totalThreads = configuration.getUpdateThreads();
+		Map<String, List<String>> operations = configuration
+				.getTableConfigurations()
+				.stream()
+				.collect(Collectors.toMap(TableConfiguration::getKey, TableConfiguration::getAffinityOperations));
+
 		Map<String, String> keyTypeMap = configuration
 				.getTableConfigurations()
 				.stream()
 				.collect(Collectors.toMap(TableConfiguration::getKey, TableConfiguration::getTypename));
 
+		// add affinity to keyTypeMap
+		keyTypeMap.put(configuration.getAffinityKey(), configuration.getAffinityField());
+
 		for (int thread = 0; thread < totalThreads; thread++) {
 			UpdateTask task = new UpdateTask(keys, data, client, counterVector, thread, totalThreads,
-					configuration.getUpdateTable(), keyTypeMap);
+					configuration.getUpdateTable(), keyTypeMap, operations, configuration.getAffinityKey());
 			executor.execute(task);
 		}
 		shutdown();
+		System.out.println("Total updates = " + counterVector.stream().mapToInt(i -> i).sum());
 	}
 
 	public void shutdown() {
