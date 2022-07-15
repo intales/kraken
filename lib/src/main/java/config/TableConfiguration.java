@@ -4,7 +4,7 @@ public class TableConfiguration {
     private String name;
     private String field;
     private int threads;
-    private String type;
+    private String typename;
 	public String getName() {
 		return name;
 	}
@@ -14,12 +14,12 @@ public class TableConfiguration {
 	public int getThreads() {
 		return threads;
 	}
-	public String getType() {
-		return type;
+	public String getTypename() {
+		return typename;
 	}
 	@Override
 	public String toString() {
-		return "TableConfiguration [name=" + name + ", field=" + field + ", threads=" + threads + ", type=" + type
+		return "TableConfiguration [name=" + name + ", field=" + field + ", threads=" + threads + ", type=" + typename
 				+ "]";
 	}
 }

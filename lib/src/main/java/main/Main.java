@@ -15,16 +15,16 @@ public class Main {
 			// check yaml file path
 			if (arg.startsWith("--config-file") && equalIndex != -1) {
 				yamlFile.setLength(0);
-				yamlFile.append(arg.substring(equalIndex+1));
+				yamlFile.append(arg.substring(equalIndex + 1));
 			}
 		}
 	}
-	
-	public static void main(String ... args) {
+
+	public static void main(String... args) {
 		StringBuilder defaultYamlFile = new StringBuilder("config/source.yaml");
-		
+
 		argsCheck(defaultYamlFile, args);
-		
+
 		// Step 1: read configuration file
 		Configuration configuration = null;
 		try {
@@ -35,12 +35,11 @@ public class Main {
 		}
 
 		DataManager dynamo = new DynamoDB(configuration);
-		
+
 		// Step 2: scan and aggregate data
 		dynamo.scan();
 		// Step 3: update table
 		dynamo.update();
-		
 	}
 
 }
