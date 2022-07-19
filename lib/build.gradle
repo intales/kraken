@@ -23,7 +23,7 @@ task fatJar(type: Jar) {
 	manifest {
         attributes 'Implementation-Title': 'Gradle Jar File',  
         	'Implementation-Version': archiveVersion,
-        	'Main-Class': 'affinity.Main'
+        	'Main-Class': 'main.Main'
     }
     archiveBaseName = project.name + '-all'
     duplicatesStrategy DuplicatesStrategy.EXCLUDE
@@ -42,8 +42,11 @@ dependencies {
     implementation 'com.google.guava:guava:31.0.1-jre'
 
     // AWS Java 2.x
-	implementation platform('software.amazon.awssdk:bom:2.17.210')
+	implementation platform('software.amazon.awssdk:bom:2.17.230')
  	implementation 'software.amazon.awssdk:dynamodb'
+ 	// https://mvnrepository.com/artifact/software.amazon.awssdk/dynamodb-enhanced
+	implementation group: 'software.amazon.awssdk', name: 'dynamodb-enhanced', version: '2.17.229'
+ 	
 
 	// https://mvnrepository.com/artifact/org.slf4j/slf4j-api
 	// SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
@@ -52,6 +55,11 @@ dependencies {
 	// https://mvnrepository.com/artifact/org.slf4j/slf4j-simple
 	implementation 'org.slf4j:slf4j-jdk14:1.7.36'
 	
+	// YAML
+	// https://mvnrepository.com/artifact/com.fasterxml.jackson.datatype/jackson-datatype-jsr310
+	implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.13.3'
+	// https://mvnrepository.com/artifact/com.fasterxml.jackson.dataformat/jackson-dataformat-yaml
+	implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: '2.13.3'
 }
 
 tasks.named('test') {
