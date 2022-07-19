@@ -11,6 +11,17 @@ public class TableConfiguration {
 	private String typename;
 	private String key;
 	private String[] affinityOperations;
+	private double weight;
+
+	public double getWeight() {
+		return weight;
+	}
+
+	public double getExponent() {
+		return exponent;
+	}
+
+	private double exponent;
 
 	public String getName() {
 		return name;

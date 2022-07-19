@@ -3,10 +3,10 @@ package dynamodb;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
+import config.Configuration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
@@ -19,14 +19,13 @@ public class UpdateTask implements Runnable {
 	private int thread;
 	private int totalThreads;
 	private Map<Interaction, UpdateData> map;
-	private String interactionTableName;
+	private Configuration configuration;
 	private Map<String, String> keyTypeMap;
-	private Map<String, List<String>> operations;
-	private String affinityKey;
+	private boolean dryRun;
 
 	public UpdateTask(ArrayList<Interaction> keys, Map<Interaction, UpdateData> map, DynamoDbClient client,
-			Vector<Integer> counterVector, int thread, int totalThreads, String interactionTableName,
-			Map<String, String> keyTypeMap, Map<String, List<String>> operations, String affinityKey) {
+			Vector<Integer> counterVector, int thread, int totalThreads, Configuration configuration,
+			Map<String, String> keyTypeMap, boolean dryRun) {
 		super();
 		this.client = client;
 		this.counterVector = counterVector;
@@ -34,10 +33,9 @@ public class UpdateTask implements Runnable {
 		this.thread = thread;
 		this.totalThreads = totalThreads;
 		this.map = map;
-		this.interactionTableName = interactionTableName;
 		this.keyTypeMap = keyTypeMap;
-		this.operations = operations;
-		this.affinityKey = affinityKey;
+		this.configuration = configuration;
+		this.dryRun = dryRun;
 	}
 
 	@Override
@@ -51,7 +49,7 @@ public class UpdateTask implements Runnable {
 
 			Map<String, AttributeValue> keyMap = key.getMap();
 
-			value.computeAffinity(operations, affinityKey);
+			value.computeAffinity(configuration);
 			attributesMap.putAll(value.getMap());
 
 			// createdAt
@@ -65,13 +63,14 @@ public class UpdateTask implements Runnable {
 
 			UpdateItemRequest updateRequestItem = UpdateItemRequest
 					.builder()
-					.tableName(interactionTableName)
+					.tableName(configuration.getUpdateTable())
 					.key(keyMap)
 					.expressionAttributeValues(attributesMap)
 					.updateExpression(expression)
 					.build();
 
-			client.updateItem(updateRequestItem);
+			if (!dryRun)
+				client.updateItem(updateRequestItem);
 
 			attributesMap.clear();
 		}

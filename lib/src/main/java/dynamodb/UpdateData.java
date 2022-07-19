@@ -1,15 +1,17 @@
 package dynamodb;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+import config.Configuration;
+import config.TableConfiguration;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 public class UpdateData {
-	private Map<String, Number> attributesMap;
+	private Map<String, Double> attributesMap;
 
 	public UpdateData() {
 		attributesMap = new HashMap<>();
@@ -21,76 +23,80 @@ public class UpdateData {
 	}
 
 	public void increment(String key) {
-		add(key, 1);
+		add(key, 1.0);
 	}
 
-	public void add(String key, int n) {
-		Number value = attributesMap.get(key);
+	public void add(String key, Double n) {
+		Double value = attributesMap.get(key);
 		if (value == null)
 			value = n;
 		else
-			value = value.intValue() + 1;
+			value = value + n;
 		attributesMap.put(key, value);
 	}
 
 	public static UpdateData merge(UpdateData first, UpdateData second) {
 		first.attributesMap.forEach((key, value) -> {
-			second.attributesMap.merge(key, value, UpdateData::sum);
+			second.attributesMap.merge(key, value, Double::sum);
 		});
 		return second;
 	}
 
-	public Map<? extends String, ? extends AttributeValue> getMap() {
+	public Map<String, AttributeValue> getMap() {
 		return attributesMap
 				.entrySet()
 				.stream()
-				.collect(Collectors.toMap(Entry::getKey, e -> AttributeValue.fromN(String.valueOf(e.getValue()))));
+				.collect(Collectors.toMap(Entry::getKey, e -> AttributeValue.fromN(e.getValue().toString())));
 	}
 
 	public String getUpdateExpression(Map<String, String> keyTypeMap) {
 		String expression = "";
-		String result = attributesMap
+		expression = attributesMap
 				.entrySet()
 				.stream()
 				.map(entry -> keyTypeMap.get(entry.getKey()) + " = " + entry.getKey())
 				.reduce(expression, (exp, str) -> exp + str + ", ");
-		return removeLastTwoChars(result);
+		return removeLastTwoChars(expression);
 	}
 
 	public static String removeLastTwoChars(String s) {
 		return (s == null || s.length() == 0) ? null : (s.substring(0, s.length() - 2));
 	}
 
-	public void computeAffinity(Map<String, List<String>> operations, String affinityKey) {
-		long affinity = attributesMap
+	public void computeAffinity(Configuration configuration) {
+		Double affinity = attributesMap
 				.entrySet()
 				.stream()
-				.mapToLong(entry -> applyOperations(entry, operations).longValue())
+				.mapToDouble(entry -> applyOperations(entry, configuration))
 				.sum();
-
-		attributesMap.put(affinityKey, affinity);
+		attributesMap.put(configuration.getAffinityKey(), affinity);
 	}
 
-	private static Number applyOperations(Entry<String, Number> entry, Map<String, List<String>> operationsMap) {
+	private static Double applyOperations(Entry<String, Double> entry, Configuration configuration) {
 		String key = entry.getKey();
-		Number value = entry.getValue();
-		List<String> ops = operationsMap.get(key);
-		if (ops != null) {
-			value = ops.stream().reduce(value, UpdateData::applyFuction, UpdateData::sum);
+		Double value = entry.getValue();
+		Optional<TableConfiguration> tableConfOptional = configuration
+				.getTableConfigurations()
+				.stream()
+				.filter(table -> table.getKey() == key)
+				.findFirst();
+
+		if (tableConfOptional.isPresent()) {
+			TableConfiguration tableConf = tableConfOptional.get();
+			value = tableConf.getAffinityOperations().stream().reduce(value, UpdateData::applyFuction, Double::sum);
+			// power
+			value = Math.pow(value, tableConf.getExponent());
+			// multiplication
+			value = value * tableConf.getWeight();
 		}
 		return value;
 	}
 
-	private static Number applyFuction(Number acc, String ops) {
+	private static Double applyFuction(Double acc, String ops) {
 		return switch (ops) {
-		case "increment" -> acc.doubleValue() + 1;
-		case "logarithm" -> Math.log((double) acc);
-		case "zero" -> 0.0;
+		case "increment" -> acc + 1.0;
+		case "logarithm" -> Math.log(acc);
 		default -> acc;
 		};
-	}
-
-	private static Number sum(Number number1, Number number2) {
-		return number1.doubleValue() + number2.doubleValue();
 	}
 }

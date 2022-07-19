@@ -2,7 +2,6 @@ package dynamodb;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,21 +21,21 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 public class DynamoDB implements DataManager {
-	Configuration configuration;
-	Region region;
-	AwsCredentialsProvider credentialsProvider;
-	DynamoDbClient client;
-	ExecutorService executor = null;
-	Vector<Integer> counterVector;
+	private Configuration configuration;
+	private AwsCredentialsProvider credentialsProvider;
+	private DynamoDbClient client;
+	private ExecutorService executor = null;
+	private Vector<Integer> counterVector;
 	private Map<Interaction, UpdateData> data = null;
+	private boolean dryRun;
 
 	public DynamoDB(Configuration configuration) {
 		this(configuration, Region.EU_CENTRAL_1);
 	}
 
 	public DynamoDB(Configuration configuration, Region region) {
-		this.region = region;
 		this.configuration = configuration;
+		this.dryRun = false;
 		credentialsProvider = ProfileCredentialsProvider.create();
 		counterVector = new Vector<>();
 		client = DynamoDbClient.builder().credentialsProvider(credentialsProvider).region(region).build();
@@ -82,10 +81,6 @@ public class DynamoDB implements DataManager {
 		executor = initThreadPool();
 		ArrayList<Interaction> keys = Collections.list(((ConcurrentHashMap<Interaction, UpdateData>) data).keys());
 		int totalThreads = configuration.getUpdateThreads();
-		Map<String, List<String>> operations = configuration
-				.getTableConfigurations()
-				.stream()
-				.collect(Collectors.toMap(TableConfiguration::getKey, TableConfiguration::getAffinityOperations));
 
 		Map<String, String> keyTypeMap = configuration
 				.getTableConfigurations()
@@ -96,12 +91,16 @@ public class DynamoDB implements DataManager {
 		keyTypeMap.put(configuration.getAffinityKey(), configuration.getAffinityField());
 
 		for (int thread = 0; thread < totalThreads; thread++) {
-			UpdateTask task = new UpdateTask(keys, data, client, counterVector, thread, totalThreads,
-					configuration.getUpdateTable(), keyTypeMap, operations, configuration.getAffinityKey());
+			UpdateTask task = new UpdateTask(keys, data, client, counterVector, thread, totalThreads, configuration,
+					keyTypeMap, dryRun);
 			executor.execute(task);
 		}
 		shutdown();
 		System.out.println("Total updates = " + counterVector.stream().mapToInt(i -> i).sum());
+	}
+
+	public void performDryRun() {
+		dryRun = true;
 	}
 
 	public void shutdown() {
@@ -125,9 +124,8 @@ public class DynamoDB implements DataManager {
 			Vector<Interaction> current, String type) {
 		if (current == null)
 			return previous;
-		current.stream().forEach(interaction -> {
-			previous.merge(interaction, new UpdateData(type), UpdateData::merge);
-		});
+		// forEach could be changed with a reduce
+		current.stream().forEach(interaction -> previous.merge(interaction, new UpdateData(type), UpdateData::merge));
 		return previous;
 	}
 
@@ -140,7 +138,8 @@ public class DynamoDB implements DataManager {
 		}
 	}
 
-	public static <T> Map<T, UpdateData> combineMaps(Map<T, UpdateData> prev, Map<T, UpdateData> curr) {
+	public static Map<Interaction, UpdateData> combineMaps(Map<Interaction, UpdateData> prev,
+			Map<Interaction, UpdateData> curr) {
 		if (prev.equals(curr))
 			return prev;
 		curr.forEach((key, value) -> prev.merge(key, value, UpdateData::merge));
