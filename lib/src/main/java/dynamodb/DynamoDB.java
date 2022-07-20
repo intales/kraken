@@ -28,15 +28,19 @@ public class DynamoDB implements DataManager {
 	private Vector<Integer> counterVector;
 	private Map<Interaction, UpdateData> data = null;
 	private boolean dryRun;
+	private String startDate;
+	private String endDate;
 
-	public DynamoDB(Configuration configuration) {
-		this(configuration, Region.EU_CENTRAL_1);
+	public DynamoDB(Configuration configuration, boolean dryRun, String startDate, String endDate) {
+		this(configuration, Region.EU_CENTRAL_1, dryRun, startDate, endDate);
 	}
 
-	public DynamoDB(Configuration configuration, Region region) {
+	public DynamoDB(Configuration configuration, Region region, boolean dryRun, String startDate, String endDate) {
 		this.configuration = configuration;
-		this.dryRun = false;
-		credentialsProvider = ProfileCredentialsProvider.create();
+		this.dryRun = dryRun;
+		this.startDate = startDate;
+		this.endDate = endDate;
+		this.credentialsProvider = ProfileCredentialsProvider.create();
 		counterVector = new Vector<>();
 		client = DynamoDbClient.builder().credentialsProvider(credentialsProvider).region(region).build();
 	}
@@ -48,7 +52,7 @@ public class DynamoDB implements DataManager {
 		Vector<Future<Vector<Interaction>>> tasksList = new Vector<>();
 		for (int thread = 0; thread < totalThreads; thread++) {
 			ScanSegmentTask scanSegmentTask = new ScanSegmentTask(client, thread, totalThreads,
-					tableConfiguration.getName(), tableConfiguration.getField());
+					tableConfiguration.getName(), tableConfiguration.getField(), startDate, endDate);
 			Future<Vector<Interaction>> future = executor.submit(scanSegmentTask);
 			tasksList.add(future);
 		}
@@ -78,6 +82,8 @@ public class DynamoDB implements DataManager {
 
 	@Override
 	public void update() {
+		if (dryRun)
+			System.out.println("Performing dry run.");
 		executor = initThreadPool();
 		ArrayList<Interaction> keys = Collections.list(((ConcurrentHashMap<Interaction, UpdateData>) data).keys());
 		int totalThreads = configuration.getUpdateThreads();
@@ -97,10 +103,6 @@ public class DynamoDB implements DataManager {
 		}
 		shutdown();
 		System.out.println("Total updates = " + counterVector.stream().mapToInt(i -> i).sum());
-	}
-
-	public void performDryRun() {
-		dryRun = true;
 	}
 
 	public void shutdown() {

@@ -1,5 +1,6 @@
 package dynamodb;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.Callable;
@@ -10,13 +11,16 @@ import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 
 public class ScanSegmentTask implements Callable<Vector<Interaction>> {
-	public ScanSegmentTask(DynamoDbClient client, int thread, int totalThreads, String tableName, String fromID) {
+	public ScanSegmentTask(DynamoDbClient client, int thread, int totalThreads, String tableName, String fromID,
+			String startDate, String endDate) {
 		super();
 		this.client = client;
 		this.thread = thread;
 		this.totalThreads = totalThreads;
 		this.tableName = tableName;
 		this.fromID = fromID;
+		this.startDate = startDate;
+		this.endDate = endDate;
 	}
 
 	private DynamoDbClient client;
@@ -26,18 +30,29 @@ public class ScanSegmentTask implements Callable<Vector<Interaction>> {
 	private String fromID;
 	private String toID = "toID";
 
+	private String startDate;
+	private String endDate;
+
 	@Override
 	public Vector<Interaction> call() {
 		int cycle = 0;
 		Vector<Interaction> items = new Vector<>();
 		Map<String, AttributeValue> mapStartKey = null;
+		String filterExpression = String
+				.format("attribute_exists(toID) AND (%s <> %s) AND (createdAt between :startDate AND :endDate )",
+						fromID, toID);
+		String projectionExpression = String.format("%s , %s", fromID, toID);
+		Map<String, AttributeValue> expressionMap = new HashMap<>();
+		expressionMap.put(":startDate", AttributeValue.fromS(startDate));
+		expressionMap.put(":endDate", AttributeValue.fromS(endDate));
 		do {
 			ScanRequest scanRequest = ScanRequest
 					.builder()
 					.tableName(tableName)
 					// .limit(2000)
-					.filterExpression("attribute_exists(toID) AND " + fromID + " <> " + toID)
-					.projectionExpression(fromID + ", " + toID)
+					.filterExpression(filterExpression)
+					.expressionAttributeValues(expressionMap)
+					.projectionExpression(projectionExpression)
 					.exclusiveStartKey(mapStartKey)
 					.segment(thread)
 					.totalSegments(totalThreads)
@@ -55,9 +70,7 @@ public class ScanSegmentTask implements Callable<Vector<Interaction>> {
 				.println("Scanned " + items.size() + " items in " + cycle + " cycles from segment " + thread + "/"
 						+ totalThreads + " of " + tableName);
 		if (cycle > 1)
-			System.out
-					.println(tableName + " could increment the number of threads to " + (totalThreads + cycle - 1)
-							+ ".");
+			System.out.println(tableName + " could increment the number of threads to " + (totalThreads + cycle - 1));
 		return items;
 	}
 
