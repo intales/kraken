@@ -54,7 +54,7 @@ public class UpdateData {
 		expression = attributesMap
 				.entrySet()
 				.stream()
-				.map(entry -> keyTypeMap.get(entry.getKey()) + " = " + entry.getKey())
+				.map(entry -> keyTypeMap.get(entry.getKey()) + "  " + entry.getKey())
 				.reduce(expression, (exp, str) -> exp + str + ", ");
 		return removeLastTwoChars(expression);
 	}
@@ -63,13 +63,18 @@ public class UpdateData {
 		return (s == null || s.length() == 0) ? null : (s.substring(0, s.length() - 2));
 	}
 
-	public void computeAffinity(Configuration configuration) {
+	public static Map<String, AttributeValue> computeAffinity(Map<String, Double> attributesMap,
+			Configuration configuration) {
 		Double affinity = attributesMap
 				.entrySet()
 				.stream()
 				.mapToDouble(entry -> applyOperations(entry, configuration))
 				.sum();
+
 		attributesMap.put(configuration.getAffinityKey(), affinity);
+		Map<String, AttributeValue> affinityMap = new HashMap<>();
+		affinityMap.put(configuration.getAffinityKey(), AttributeValue.fromN(affinity.toString()));
+		return affinityMap;
 	}
 
 	private static Double applyOperations(Entry<String, Double> entry, Configuration configuration) {
