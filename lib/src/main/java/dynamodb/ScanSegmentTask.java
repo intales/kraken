@@ -39,8 +39,8 @@ public class ScanSegmentTask implements Callable<Vector<Interaction>> {
 		Vector<Interaction> items = new Vector<>();
 		Map<String, AttributeValue> mapStartKey = null;
 		String filterExpression = String
-				.format("attribute_exists(toID) AND (%s <> %s) AND (createdAt between :startDate AND :endDate )",
-						fromID, toID);
+				.format("attribute_exists(toID) AND (%s <> %s) AND (createdAt between :startDate AND :endDate)", fromID,
+						toID);
 		String projectionExpression = String.format("%s , %s", fromID, toID);
 		Map<String, AttributeValue> expressionMap = new HashMap<>();
 		expressionMap.put(":startDate", AttributeValue.fromS(startDate));
@@ -59,7 +59,6 @@ public class ScanSegmentTask implements Callable<Vector<Interaction>> {
 					.build();
 
 			ScanResponse scanResponse = client.scan(scanRequest);
-
 			items.addAll(scanResponse.items().stream().map(el -> toInteraction(el)).toList());
 
 			mapStartKey = scanResponse.hasLastEvaluatedKey() ? scanResponse.lastEvaluatedKey() : null;

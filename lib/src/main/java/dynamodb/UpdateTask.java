@@ -1,10 +1,8 @@
 package dynamodb;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Vector;
@@ -48,8 +46,6 @@ public class UpdateTask implements Runnable {
 	public void run() {
 		Integer count = 0;
 
-		String[] forbidenWords = { "createdAt", "updatedAt", "follows" };
-		List<String> forbidenList = Arrays.asList(forbidenWords);
 		Map<String, String> keyTypeMapReverse = keyTypeMap
 				.entrySet()
 				.stream()
@@ -79,7 +75,7 @@ public class UpdateTask implements Runnable {
 
 			UpdateItemRequest updateRequestItem = UpdateItemRequest
 					.builder()
-					.returnValues(ReturnValue.UPDATED_NEW)
+					.returnValues(ReturnValue.ALL_NEW)
 					.tableName(configuration.getUpdateTable())
 					.key(keyMap)
 					.expressionAttributeValues(attributesMap)
@@ -89,12 +85,11 @@ public class UpdateTask implements Runnable {
 			if (!dryRun) {
 				UpdateItemResponse itemResponse = client.updateItem(updateRequestItem);
 
-				System.out.println(keyTypeMap);
 				Map<String, Double> updatedAttributes = itemResponse
 						.attributes()
 						.entrySet()
 						.stream()
-						.filter(entry -> !forbidenList.contains(entry.getKey()))
+						.filter(entry -> keyTypeMapReverse.containsKey(entry.getKey()))
 						.collect(Collectors
 								.toMap(entry -> keyTypeMapReverse.get(entry.getKey()),
 										entry -> Double.valueOf(entry.getValue().n())));
@@ -107,7 +102,6 @@ public class UpdateTask implements Runnable {
 						.key(keyMap)
 						.expressionAttributeValues(UpdateData.computeAffinity(updatedAttributes, configuration))
 						.updateExpression(expression)
-						.returnValues(ReturnValue.UPDATED_NEW)
 						.build();
 
 				client.updateItem(updateRequestItem);
