@@ -44,8 +44,8 @@ dependencies {
     // AWS Java 2.x
 	implementation platform('software.amazon.awssdk:bom:2.17.230')
  	implementation 'software.amazon.awssdk:dynamodb'
- 	// https://mvnrepository.com/artifact/software.amazon.awssdk/dynamodb-enhanced
-	implementation group: 'software.amazon.awssdk', name: 'dynamodb-enhanced', version: '2.17.229'
+	implementation group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
+ 	
  	
 
 	// https://mvnrepository.com/artifact/org.slf4j/slf4j-api
