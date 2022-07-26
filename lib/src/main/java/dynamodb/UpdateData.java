@@ -98,10 +98,15 @@ public class UpdateData {
 	}
 
 	private static Double applyFuction(Double acc, String ops) {
-		return switch (ops) {
-		case "increment" -> acc + 1.0;
-		case "logarithm" -> Math.log(acc);
-		default -> acc;
-		};
+		switch (ops) {
+		case "increment":
+			acc += 1.0;
+			break;
+		case "logarithm":
+			acc = Math.log(acc);
+			break;
+		default:
+		}
+		return acc;
 	}
 }

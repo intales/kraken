@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -59,7 +60,7 @@ public class ScanSegmentTask implements Callable<Vector<Interaction>> {
 					.build();
 
 			ScanResponse scanResponse = client.scan(scanRequest);
-			items.addAll(scanResponse.items().stream().map(el -> toInteraction(el)).toList());
+			items.addAll(scanResponse.items().stream().map(el -> toInteraction(el)).collect(Collectors.toList()));
 
 			mapStartKey = scanResponse.hasLastEvaluatedKey() ? scanResponse.lastEvaluatedKey() : null;
 			cycle++;
