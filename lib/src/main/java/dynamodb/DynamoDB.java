@@ -86,7 +86,7 @@ public class DynamoDB implements DataManager {
 			System.out.println("Performing dry run.");
 		executor = initThreadPool();
 		ArrayList<Interaction> keys = Collections.list(((ConcurrentHashMap<Interaction, UpdateData>) data).keys());
-		int totalThreads = configuration.getUpdateThreads();
+		int totalThreads = Math.round(keys.size() / 2);
 
 		Map<String, String> keyTypeMap = configuration
 				.getTableConfigurations()

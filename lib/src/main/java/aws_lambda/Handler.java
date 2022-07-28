@@ -64,14 +64,17 @@ public class Handler implements RequestHandler<Map<String, String>, String> {
 
 	@Override
 	public String handleRequest(Map<String, String> input, Context context) {
-		String startDate = getYesterdayDate(30, 2);
-		String endDate = getTodayDate(30, 2);
+		String startDate = getYesterdayDate(00, 00);
+		String endDate = getTodayDate(00, 00);
 		// get config from S3
+		System.out.println("Start date = " + startDate);
+		System.out.println("End date   = " + endDate);
 		Configuration configuration = getConfig();
 		if (configuration == null)
 			System.exit(1);
+		boolean dryRun = false;
 		// init datamanager
-		DataManager datamanager = new DynamoDB(configuration, true, startDate, endDate);
+		DataManager datamanager = new DynamoDB(configuration, dryRun, startDate, endDate);
 		datamanager.scan();
 		datamanager.update();
 		return null;

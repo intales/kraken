@@ -90,17 +90,19 @@ public class UpdateTask implements Runnable {
 						.entrySet()
 						.stream()
 						.filter(entry -> keyTypeMapReverse.containsKey(entry.getKey()))
+						.filter(entry -> !entry.getKey().equals(configuration.getAffinityField()))
 						.collect(Collectors
 								.toMap(entry -> keyTypeMapReverse.get(entry.getKey()),
 										entry -> Double.valueOf(entry.getValue().n())));
 
 				expression = String
 						.format("SET %s = %s", configuration.getAffinityField(), configuration.getAffinityKey());
+				Map<String, AttributeValue> affinity = UpdateData.computeAffinity(updatedAttributes, configuration);
 				updateRequestItem = UpdateItemRequest
 						.builder()
 						.tableName(configuration.getUpdateTable())
 						.key(keyMap)
-						.expressionAttributeValues(UpdateData.computeAffinity(updatedAttributes, configuration))
+						.expressionAttributeValues(affinity)
 						.updateExpression(expression)
 						.build();
 
