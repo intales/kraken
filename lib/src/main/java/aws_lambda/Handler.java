@@ -17,7 +17,6 @@ import config.Configuration;
 import config.YAML;
 import dynamodb.DynamoDB;
 import main.DataManager;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -31,9 +30,7 @@ public class Handler implements RequestHandler<Map<String, String>, String> {
 	// during initialization stay in memory between invocations, and can be reused
 	// by the handler thousands of times.
 	SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-	ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.create();
 	Region region = Region.EU_CENTRAL_1;
-	S3Client s3 = S3Client.builder().region(region).credentialsProvider(credentialsProvider).build();
 
 	// init DynamoDB here and reuse
 	// download config file from S3 in handleRequest
@@ -81,8 +78,9 @@ public class Handler implements RequestHandler<Map<String, String>, String> {
 	}
 
 	private Configuration getConfig() {
+		S3Client s3 = S3Client.builder().build();
 		// check if file is present
-		String path = "s3config.yaml";
+		String path = "/tmp/s3config.yaml";
 		try {
 			return YAML.getConfiguration(new File(path));
 		} catch (FileNotFoundException e) {

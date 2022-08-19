@@ -10,6 +10,7 @@ import java.time.Instant;
 import config.Configuration;
 import config.YAML;
 import dynamodb.DynamoDB;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 
 public class Main {
 
@@ -82,7 +83,8 @@ public class Main {
 		boolean dryRunBool = Boolean.valueOf(dryRun.toString());
 		System.out.println("Start date = " + startDate);
 		System.out.println("End date   = " + endDate);
-		DataManager dynamo = new DynamoDB(configuration, dryRunBool, startDate.toString(), endDate.toString());
+		DataManager dynamo = new DynamoDB(configuration, ProfileCredentialsProvider.create(), dryRunBool,
+				startDate.toString(), endDate.toString());
 		Instant start = Instant.now();
 
 		// Step 2: scan and aggregate data

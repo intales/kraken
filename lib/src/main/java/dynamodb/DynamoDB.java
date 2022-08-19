@@ -15,14 +15,12 @@ import java.util.stream.Collectors;
 import config.Configuration;
 import config.TableConfiguration;
 import main.DataManager;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 public class DynamoDB implements DataManager {
 	private Configuration configuration;
-	private AwsCredentialsProvider credentialsProvider;
 	private DynamoDbClient client;
 	private ExecutorService executor = null;
 	private Vector<Integer> counterVector;
@@ -31,18 +29,28 @@ public class DynamoDB implements DataManager {
 	private String startDate;
 	private String endDate;
 
-	public DynamoDB(Configuration configuration, boolean dryRun, String startDate, String endDate) {
-		this(configuration, Region.EU_CENTRAL_1, dryRun, startDate, endDate);
+	public DynamoDB(Configuration configuration, ProfileCredentialsProvider credentialsProvider, boolean dryRun,
+			String startDate, String endDate) {
+		this(configuration, Region.EU_CENTRAL_1, credentialsProvider, dryRun, startDate, endDate);
 	}
 
-	public DynamoDB(Configuration configuration, Region region, boolean dryRun, String startDate, String endDate) {
+	public DynamoDB(Configuration configuration, Region region, ProfileCredentialsProvider credentialsProvider,
+			boolean dryRun, String startDate, String endDate) {
 		this.configuration = configuration;
 		this.dryRun = dryRun;
 		this.startDate = startDate;
 		this.endDate = endDate;
-		this.credentialsProvider = ProfileCredentialsProvider.create();
 		counterVector = new Vector<>();
 		client = DynamoDbClient.builder().credentialsProvider(credentialsProvider).region(region).build();
+	}
+
+	public DynamoDB(Configuration configuration, boolean dryRun, String startDate, String endDate) {
+		this.configuration = configuration;
+		this.dryRun = dryRun;
+		this.startDate = startDate;
+		this.endDate = endDate;
+		counterVector = new Vector<>();
+		client = DynamoDbClient.builder().build();
 	}
 
 	private Map<Interaction, UpdateData> scanTable(TableConfiguration tableConfiguration) {
