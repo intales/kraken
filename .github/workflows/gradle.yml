@@ -31,7 +31,7 @@ jobs:
         cache: gradle
     - name: Build with Gradle
       run: ./gradlew buildLambda --no-daemon
-    - name: default deploy
+    - name: AWS Lambda deploy
       uses: appleboy/lambda-action@master
       with:
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -39,3 +39,4 @@ jobs:
           aws_region: eu-central-1
           function_name: kraken
           zip_file: lib/build/libs/lib-lambda-1.0.jar
+          runtime: java11
