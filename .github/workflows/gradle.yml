@@ -28,5 +28,6 @@ jobs:
       with:
         java-version: '11'
         distribution: 'temurin'
+        cache: gradle
     - name: Build with Gradle
-      run: ./gradlew buildLambda
+      run: ./gradlew buildLambda --no-daemon
