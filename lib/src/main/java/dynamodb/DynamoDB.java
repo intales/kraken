@@ -28,9 +28,8 @@ public class DynamoDB implements DataManager {
 	private Map<Interaction, UpdateData> data = null;
 	private boolean dryRun;
 
-	public DynamoDB(Configuration configuration, ProfileCredentialsProvider credentialsProvider, boolean dryRun,
-			String startDate, String endDate) {
-		this(configuration, Region.EU_CENTRAL_1, credentialsProvider, dryRun, startDate, endDate);
+	public DynamoDB(Configuration configuration, ProfileCredentialsProvider credentialsProvider, boolean dryRun) {
+		this(configuration, Region.EU_CENTRAL_1, credentialsProvider, dryRun);
 	}
 
 	public DynamoDB(Configuration configuration, Region region, ProfileCredentialsProvider credentialsProvider,

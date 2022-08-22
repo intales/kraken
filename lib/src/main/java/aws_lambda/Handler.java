@@ -71,9 +71,9 @@ public class Handler implements RequestHandler<Map<String, Object>, String> {
 			return "Failure: configuration is null";
 		boolean dryRun = false;
 		// init datamanager
-		DataManager datamanager = new DynamoDB(configuration, dryRun, startDate, endDate);
-		datamanager.scan();
-		datamanager.update();
+		DataManager datamanager = new DynamoDB(configuration, dryRun);
+		datamanager.scanIncremental(startDate, endDate);
+		datamanager.updateIncremental();
 		return "Success";
 	}
 

@@ -42,8 +42,9 @@ public class ScanSegmentTask implements Callable<Vector<Interaction>> {
 		Map<String, AttributeValue> mapStartKey = null;
 		String filterExpression = String.format("attribute_exists(toID) AND (%s <> %s)", fromID, toID);
 		String projectionExpression = String.format("%s , %s", fromID, toID);
-		Map<String, AttributeValue> expressionMap = new HashMap<>();
+		Map<String, AttributeValue> expressionMap = null;
 		if (startDate.isPresent() && endDate.isPresent()) {
+			expressionMap = new HashMap<>();
 			expressionMap.put(":startDate", AttributeValue.fromS(startDate.get()));
 			expressionMap.put(":endDate", AttributeValue.fromS(endDate.get()));
 			filterExpression += " AND (createdAt between :startDate AND :endDate)";

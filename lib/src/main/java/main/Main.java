@@ -55,11 +55,9 @@ public class Main {
 		}
 		if (startDate.length() == 0) {
 			System.err.println("--start-date is missing.");
-			System.exit(MISSING_EXIT_CODE);
 		}
 		if (endDate.length() == 0) {
 			System.err.println("--end-date is missing.");
-			System.exit(MISSING_EXIT_CODE);
 		}
 	}
 
@@ -77,14 +75,13 @@ public class Main {
 			configuration = YAML.getConfiguration(defaultYamlFile.toString());
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
-			System.exit(INVALID_EXIT_CODE);
+			System.exit(MISSING_EXIT_CODE);
 		}
 
 		boolean dryRunBool = Boolean.valueOf(dryRun.toString());
 		System.out.println("Start date = " + startDate);
 		System.out.println("End date   = " + endDate);
-		DataManager dynamo = new DynamoDB(configuration, ProfileCredentialsProvider.create(), dryRunBool,
-				startDate.toString(), endDate.toString());
+		DataManager dynamo = new DynamoDB(configuration, ProfileCredentialsProvider.create(), dryRunBool);
 		Instant start = Instant.now();
 
 		// Step 2: scan and aggregate data
