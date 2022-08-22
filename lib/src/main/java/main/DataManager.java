@@ -4,7 +4,7 @@ public interface DataManager {
 
 	public void scan();
 
-	public void scanIncremental();
+	public void scanIncremental(String startDate, String endDate);
 
 	public void update();
 

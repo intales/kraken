@@ -2,6 +2,7 @@ package dynamodb;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -13,7 +14,7 @@ import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 
 public class ScanSegmentTask implements Callable<Vector<Interaction>> {
 	public ScanSegmentTask(DynamoDbClient client, int thread, int totalThreads, String tableName, String fromID,
-			String startDate, String endDate) {
+			Optional<String> startDate, Optional<String> endDate) {
 		super();
 		this.client = client;
 		this.thread = thread;
@@ -31,21 +32,22 @@ public class ScanSegmentTask implements Callable<Vector<Interaction>> {
 	private String fromID;
 	private String toID = "toID";
 
-	private String startDate;
-	private String endDate;
+	private Optional<String> startDate;
+	private Optional<String> endDate;
 
 	@Override
 	public Vector<Interaction> call() {
 		int cycle = 0;
 		Vector<Interaction> items = new Vector<>();
 		Map<String, AttributeValue> mapStartKey = null;
-		String filterExpression = String
-				.format("attribute_exists(toID) AND (%s <> %s) AND (createdAt between :startDate AND :endDate)", fromID,
-						toID);
+		String filterExpression = String.format("attribute_exists(toID) AND (%s <> %s)", fromID, toID);
 		String projectionExpression = String.format("%s , %s", fromID, toID);
 		Map<String, AttributeValue> expressionMap = new HashMap<>();
-		expressionMap.put(":startDate", AttributeValue.fromS(startDate));
-		expressionMap.put(":endDate", AttributeValue.fromS(endDate));
+		if (startDate.isPresent() && endDate.isPresent()) {
+			expressionMap.put(":startDate", AttributeValue.fromS(startDate.get()));
+			expressionMap.put(":endDate", AttributeValue.fromS(endDate.get()));
+			filterExpression += " AND (createdAt between :startDate AND :endDate)";
+		}
 		do {
 			ScanRequest scanRequest = ScanRequest
 					.builder()

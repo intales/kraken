@@ -3,6 +3,7 @@ package dynamodb;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -26,8 +27,6 @@ public class DynamoDB implements DataManager {
 	private Vector<Integer> counterVector;
 	private Map<Interaction, UpdateData> data = null;
 	private boolean dryRun;
-	private String startDate;
-	private String endDate;
 
 	public DynamoDB(Configuration configuration, ProfileCredentialsProvider credentialsProvider, boolean dryRun,
 			String startDate, String endDate) {
@@ -35,25 +34,22 @@ public class DynamoDB implements DataManager {
 	}
 
 	public DynamoDB(Configuration configuration, Region region, ProfileCredentialsProvider credentialsProvider,
-			boolean dryRun, String startDate, String endDate) {
+			boolean dryRun) {
 		this.configuration = configuration;
 		this.dryRun = dryRun;
-		this.startDate = startDate;
-		this.endDate = endDate;
 		counterVector = new Vector<>();
 		client = DynamoDbClient.builder().credentialsProvider(credentialsProvider).region(region).build();
 	}
 
-	public DynamoDB(Configuration configuration, boolean dryRun, String startDate, String endDate) {
+	public DynamoDB(Configuration configuration, boolean dryRun) {
 		this.configuration = configuration;
 		this.dryRun = dryRun;
-		this.startDate = startDate;
-		this.endDate = endDate;
 		counterVector = new Vector<>();
 		client = DynamoDbClient.builder().build();
 	}
 
-	private Map<Interaction, UpdateData> scanTable(TableConfiguration tableConfiguration) {
+	private Map<Interaction, UpdateData> scanTable(TableConfiguration tableConfiguration, Optional<String> startDate,
+			Optional<String> endDate) {
 		// in order to scan a dynamodb table
 		// the table name, field, type and threads number must be retrieved
 		int totalThreads = tableConfiguration.getThreads();
@@ -74,18 +70,28 @@ public class DynamoDB implements DataManager {
 						DynamoDB::combineMaps);
 	}
 
-	@Override
-	public void scan() {
+	private void _scan(Optional<String> startDate, Optional<String> endDate) {
 		executor = initThreadPool();
 		Map<Interaction, UpdateData> initValue = new ConcurrentHashMap<>();
 		data = configuration
 				.getTableConfigurations()
 				.stream()
 				.parallel()
-				.map(table -> scanTable(table))
+				.map(table -> scanTable(table, startDate, endDate))
 				.reduce(initValue, DynamoDB::combineMaps);
 		System.out.println("Total aggregated data = " + data.size());
 		shutdown();
+	}
+
+	@Override
+	public void scan() {
+		Optional<String> empty = Optional.empty();
+		_scan(empty, empty);
+	}
+
+	@Override
+	public void scanIncremental(String startDate, String endDate) {
+		_scan(Optional.of(startDate), Optional.of(endDate));
 	}
 
 	@Override
@@ -111,6 +117,12 @@ public class DynamoDB implements DataManager {
 		}
 		shutdown();
 		System.out.println("Total updates = " + counterVector.stream().mapToInt(i -> i).sum());
+	}
+
+	@Override
+	public void updateIncremental() {
+		// TODO Auto-generated method stub
+
 	}
 
 	public void shutdown() {
@@ -155,4 +167,5 @@ public class DynamoDB implements DataManager {
 		curr.forEach((key, value) -> prev.merge(key, value, UpdateData::merge));
 		return prev;
 	}
+
 }
