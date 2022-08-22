@@ -14,8 +14,8 @@ import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 
 public class Main {
 
-	private static final int MISSING_EXIT_CODE = 1;
 	private static final int INVALID_EXIT_CODE = 2;
+	private static final int MISSING_EXIT_CODE = 1;
 
 	public static void argsCheck(StringBuilder yamlFile, StringBuilder dryRun, StringBuilder startDate,
 			StringBuilder endDate, String[] args) {
@@ -79,8 +79,6 @@ public class Main {
 		}
 
 		boolean dryRunBool = Boolean.valueOf(dryRun.toString());
-		System.out.println("Start date = " + startDate);
-		System.out.println("End date   = " + endDate);
 		DataManager dynamo = new DynamoDB(configuration, ProfileCredentialsProvider.create(), dryRunBool);
 		Instant start = Instant.now();
 

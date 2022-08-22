@@ -93,8 +93,7 @@ public class DynamoDB implements DataManager {
 		_scan(Optional.of(startDate), Optional.of(endDate));
 	}
 
-	@Override
-	public void update() {
+	private void _update(boolean incremental) {
 		if (dryRun)
 			System.out.println("Performing dry run.");
 		executor = initThreadPool();
@@ -111,7 +110,7 @@ public class DynamoDB implements DataManager {
 
 		for (int thread = 0; thread < totalThreads; thread++) {
 			UpdateTask task = new UpdateTask(keys, data, client, counterVector, thread, totalThreads, configuration,
-					keyTypeMap, dryRun);
+					keyTypeMap, dryRun, incremental);
 			executor.execute(task);
 		}
 		shutdown();
@@ -119,9 +118,13 @@ public class DynamoDB implements DataManager {
 	}
 
 	@Override
-	public void updateIncremental() {
-		// TODO Auto-generated method stub
+	public void update() {
+		_update(false);
+	}
 
+	@Override
+	public void updateIncremental() {
+		_update(true);
 	}
 
 	public void shutdown() {
