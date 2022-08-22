@@ -23,6 +23,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
+@SuppressWarnings("unused")
 public class Handler implements RequestHandler<Map<String, Object>, String> {
 	// You can add initialization code outside of your handler method to reuse
 	// resources across multiple invocations. When the runtime loads your handler,
@@ -61,19 +62,15 @@ public class Handler implements RequestHandler<Map<String, Object>, String> {
 
 	@Override
 	public String handleRequest(Map<String, Object> input, Context context) {
-		String startDate = getYesterdayDate(00, 00);
-		String endDate = getTodayDate(00, 00);
 		// get config from S3
-		System.out.println("Start date = " + startDate);
-		System.out.println("End date   = " + endDate);
 		Configuration configuration = getConfig();
 		if (configuration == null)
 			return "Failure: configuration is null";
 		boolean dryRun = false;
 		// init datamanager
 		DataManager datamanager = new DynamoDB(configuration, dryRun);
-		datamanager.scanIncremental(startDate, endDate);
-		datamanager.updateIncremental();
+		datamanager.scan();
+		datamanager.update();
 		return "Success";
 	}
 
