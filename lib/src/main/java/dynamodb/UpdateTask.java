@@ -26,10 +26,11 @@ public class UpdateTask implements Runnable {
 	private Configuration configuration;
 	private Map<String, String> keyTypeMap;
 	private boolean dryRun;
+	private boolean incremental;
 
 	public UpdateTask(ArrayList<Interaction> keys, Map<Interaction, UpdateData> map, DynamoDbClient client,
 			Vector<Integer> counterVector, int thread, int totalThreads, Configuration configuration,
-			Map<String, String> keyTypeMap, boolean dryRun) {
+			Map<String, String> keyTypeMap, boolean dryRun, boolean incremental) {
 		super();
 		this.client = client;
 		this.counterVector = counterVector;
@@ -40,6 +41,7 @@ public class UpdateTask implements Runnable {
 		this.keyTypeMap = keyTypeMap;
 		this.configuration = configuration;
 		this.dryRun = dryRun;
+		this.incremental = incremental;
 	}
 
 	@Override
@@ -68,45 +70,74 @@ public class UpdateTask implements Runnable {
 			// zero
 			attributesMap.put(":zero", AttributeValue.fromN("0"));
 
-			String expression = "SET updatedAt = :u, createdAt = if_not_exists(createdAt, :c) ";
+			// TODO if incremental use ADD, return new value and update affinity
+			// if not use SET and calculate affinity immediately
+			ExpressionBuilder expressionBuilder = new ExpressionBuilder();
+			expressionBuilder.add("follows :zero");
+			expressionBuilder.set("updatedAt = :u");
+			expressionBuilder.set("createdAt = if_not_exists(createdAt, :c)");
 
-			expression += "ADD follows :zero, ";
-			expression += value.getUpdateExpression(keyTypeMap);
+			if (incremental) {
+				// so all the values have to be added
+				expressionBuilder.add(value.getUpdateExpression(keyTypeMap, " "));
+				String expression = expressionBuilder.build();
 
-			UpdateItemRequest updateRequestItem = UpdateItemRequest
-					.builder()
-					.returnValues(ReturnValue.ALL_NEW)
-					.tableName(configuration.getUpdateTable())
-					.key(keyMap)
-					.expressionAttributeValues(attributesMap)
-					.updateExpression(expression)
-					.build();
+				System.out.println("Expression incremental = " + expression);
+				UpdateItemRequest updateRequestItem = UpdateItemRequest
+						.builder()
+						.returnValues(ReturnValue.ALL_NEW)
+						.tableName(configuration.getUpdateTable())
+						.key(keyMap)
+						.expressionAttributeValues(attributesMap)
+						.updateExpression(expression)
+						.build();
+				if (!dryRun) {
+					UpdateItemResponse itemResponse = client.updateItem(updateRequestItem);
 
-			if (!dryRun) {
-				UpdateItemResponse itemResponse = client.updateItem(updateRequestItem);
+					Map<String, Double> updatedAttributes = itemResponse
+							.attributes()
+							.entrySet()
+							.stream()
+							.filter(entry -> keyTypeMapReverse.containsKey(entry.getKey()))
+							.filter(entry -> !entry.getKey().equals(configuration.getAffinityField()))
+							.collect(Collectors
+									.toMap(entry -> keyTypeMapReverse.get(entry.getKey()),
+											entry -> Double.valueOf(entry.getValue().n())));
 
-				Map<String, Double> updatedAttributes = itemResponse
-						.attributes()
-						.entrySet()
-						.stream()
-						.filter(entry -> keyTypeMapReverse.containsKey(entry.getKey()))
-						.filter(entry -> !entry.getKey().equals(configuration.getAffinityField()))
-						.collect(Collectors
-								.toMap(entry -> keyTypeMapReverse.get(entry.getKey()),
-										entry -> Double.valueOf(entry.getValue().n())));
-
-				expression = String
-						.format("SET %s = %s", configuration.getAffinityField(), configuration.getAffinityKey());
-				Map<String, AttributeValue> affinity = UpdateData.computeAffinity(updatedAttributes, configuration);
-				updateRequestItem = UpdateItemRequest
+					expression = String
+							.format("SET %s = %s", configuration.getAffinityField(), configuration.getAffinityKey());
+					Map<String, AttributeValue> affinity = UpdateData.computeAffinity(updatedAttributes, configuration);
+					updateRequestItem = UpdateItemRequest
+							.builder()
+							.tableName(configuration.getUpdateTable())
+							.key(keyMap)
+							.expressionAttributeValues(affinity)
+							.updateExpression(expression)
+							.build();
+					client.updateItem(updateRequestItem);
+				}
+			} else {
+				expressionBuilder.set(value.getUpdateExpression(keyTypeMap, " = "));
+				expressionBuilder.set(configuration.getAffinityField() + " = " + configuration.getAffinityKey());
+				String expression = expressionBuilder.build();
+				attributesMap
+						.put(configuration.getAffinityKey(),
+								AttributeValue.fromN(value.computeAffinity(configuration).toString()));
+				UpdateItemRequest updateRequestItem = UpdateItemRequest
 						.builder()
 						.tableName(configuration.getUpdateTable())
 						.key(keyMap)
-						.expressionAttributeValues(affinity)
+						.expressionAttributeValues(attributesMap)
 						.updateExpression(expression)
 						.build();
-
-				client.updateItem(updateRequestItem);
+				if (!dryRun)
+					try {
+						client.updateItem(updateRequestItem);
+					} catch (Exception e) {
+						System.err
+								.println(e.getMessage() + "\nExpression " + expression + "\nAttributes = "
+										+ attributesMap);
+					}
 			}
 		}
 		counterVector.add(count);
