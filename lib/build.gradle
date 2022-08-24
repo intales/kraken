@@ -60,15 +60,6 @@ task buildZip(type: Zip) {
     }
 }
 
-task copyNativeDeps(type: Copy) {
-    from(configurations.runtimeClasspath) {
-        include "*.dylib"
-        include "*.so"
-        include "*.dll"
-    }
-    into 'build/dynamodb-local'
-}
-
 dependencies {
     // Use JUnit Jupiter for testing.
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'
@@ -107,7 +98,4 @@ dependencies {
 tasks.named('test') {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
-    
-    dependsOn copyNativeDeps
-    systemProperty "java.library.path", 'build/libs'
 }
