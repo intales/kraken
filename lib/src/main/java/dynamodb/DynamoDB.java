@@ -3,6 +3,7 @@ package dynamodb;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -22,42 +23,36 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 public class DynamoDB implements DataManager {
 	private Configuration configuration;
 	private DynamoDbClient client;
-	private ExecutorService executor;
-	private boolean dryRun;
-	private String startDate;
-	private String endDate;
-	private Map<Interaction, UpdateData> data;
+	private ExecutorService executor = null;
 	private Vector<Integer> counterVector = new Vector<>();
+	private Map<Interaction, UpdateData> data = null;
+	private boolean dryRun;
 
-	public DynamoDB(Configuration configuration, ProfileCredentialsProvider credentialsProvider, boolean dryRun,
-			String startDate, String endDate) {
-		this(configuration, Region.EU_CENTRAL_1, credentialsProvider, dryRun, startDate, endDate);
+	public DynamoDB(Configuration configuration, ProfileCredentialsProvider credentialsProvider, boolean dryRun) {
+		this(configuration, Region.EU_CENTRAL_1, credentialsProvider, dryRun);
 	}
 
 	public DynamoDB(Configuration configuration, Region region, ProfileCredentialsProvider credentialsProvider,
-			boolean dryRun, String startDate, String endDate) {
+			boolean dryRun) {
 		this.configuration = configuration;
 		this.dryRun = dryRun;
-		this.startDate = startDate;
-		this.endDate = endDate;
 		client = DynamoDbClient.builder().credentialsProvider(credentialsProvider).region(region).build();
 	}
 
-	public DynamoDB(Configuration configuration, boolean dryRun, String startDate, String endDate) {
+	public DynamoDB(Configuration configuration, boolean dryRun) {
 		this.configuration = configuration;
 		this.dryRun = dryRun;
-		this.startDate = startDate;
-		this.endDate = endDate;
 		client = DynamoDbClient.builder().build();
 	}
-
-	public DynamoDB(Configuration configuration, DynamoDbClient client) {
+  
+  public DynamoDB(Configuration configuration, DynamoDbClient client) {
 		this.configuration = configuration;
 		this.dryRun = false;
 		this.client = client;
 	}
 
-	private Map<Interaction, UpdateData> scanTable(TableConfiguration tableConfiguration) {
+	private Map<Interaction, UpdateData> scanTable(TableConfiguration tableConfiguration, Optional<String> startDate,
+			Optional<String> endDate) {
 		// in order to scan a dynamodb table
 		// the table name, field, type and threads number must be retrieved
 		int totalThreads = tableConfiguration.getThreads();
@@ -78,22 +73,31 @@ public class DynamoDB implements DataManager {
 						DynamoDB::combineMaps);
 	}
 
-	@Override
-	public void scan() {
+	private void _scan(Optional<String> startDate, Optional<String> endDate) {
 		executor = initThreadPool();
 		Map<Interaction, UpdateData> initValue = new ConcurrentHashMap<>();
 		data = configuration
 				.getTableConfigurations()
 				.stream()
 				.parallel()
-				.map(table -> scanTable(table))
+				.map(table -> scanTable(table, startDate, endDate))
 				.reduce(initValue, DynamoDB::combineMaps);
 		System.out.println("Total aggregated data = " + data.size());
 		shutdown();
 	}
 
 	@Override
-	public void update() {
+	public void scan() {
+		Optional<String> empty = Optional.empty();
+		_scan(empty, empty);
+	}
+
+	@Override
+	public void scanIncremental(String startDate, String endDate) {
+		_scan(Optional.of(startDate), Optional.of(endDate));
+	}
+
+	private void _update(boolean incremental) {
 		if (dryRun)
 			System.out.println("Performing dry run.");
 		executor = initThreadPool();
@@ -110,11 +114,21 @@ public class DynamoDB implements DataManager {
 
 		for (int thread = 0; thread < totalThreads; thread++) {
 			UpdateTask task = new UpdateTask(keys, data, client, counterVector, thread, totalThreads, configuration,
-					keyTypeMap, dryRun);
+					keyTypeMap, dryRun, incremental);
 			executor.execute(task);
 		}
 		shutdown();
 		System.out.println("Total updates = " + counterVector.stream().mapToInt(i -> i).sum());
+	}
+
+	@Override
+	public void update() {
+		_update(false);
+	}
+
+	@Override
+	public void updateIncremental() {
+		_update(true);
 	}
 
 	public void shutdown() {
@@ -159,4 +173,5 @@ public class DynamoDB implements DataManager {
 		curr.forEach((key, value) -> prev.merge(key, value, UpdateData::merge));
 		return prev;
 	}
+
 }

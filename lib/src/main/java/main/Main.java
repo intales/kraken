@@ -14,8 +14,8 @@ import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 
 public class Main {
 
-	private static final int MISSING_EXIT_CODE = 1;
 	private static final int INVALID_EXIT_CODE = 2;
+	private static final int MISSING_EXIT_CODE = 1;
 
 	public static void argsCheck(StringBuilder yamlFile, StringBuilder dryRun, StringBuilder startDate,
 			StringBuilder endDate, String[] args) {
@@ -55,11 +55,9 @@ public class Main {
 		}
 		if (startDate.length() == 0) {
 			System.err.println("--start-date is missing.");
-			System.exit(MISSING_EXIT_CODE);
 		}
 		if (endDate.length() == 0) {
 			System.err.println("--end-date is missing.");
-			System.exit(MISSING_EXIT_CODE);
 		}
 	}
 
@@ -77,14 +75,11 @@ public class Main {
 			configuration = YAML.getConfiguration(defaultYamlFile.toString());
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
-			System.exit(INVALID_EXIT_CODE);
+			System.exit(MISSING_EXIT_CODE);
 		}
 
 		boolean dryRunBool = Boolean.valueOf(dryRun.toString());
-		System.out.println("Start date = " + startDate);
-		System.out.println("End date   = " + endDate);
-		DataManager dynamo = new DynamoDB(configuration, ProfileCredentialsProvider.create(), dryRunBool,
-				startDate.toString(), endDate.toString());
+		DataManager dynamo = new DynamoDB(configuration, ProfileCredentialsProvider.create(), dryRunBool);
 		Instant start = Instant.now();
 
 		// Step 2: scan and aggregate data

@@ -49,18 +49,22 @@ public class UpdateData {
 				.collect(Collectors.toMap(Entry::getKey, e -> AttributeValue.fromN(e.getValue().toString())));
 	}
 
-	public String getUpdateExpression(Map<String, String> keyTypeMap) {
+	public String getUpdateExpression(Map<String, String> keyTypeMap, String separator) {
 		String expression = "";
 		expression = attributesMap
 				.entrySet()
 				.stream()
-				.map(entry -> keyTypeMap.get(entry.getKey()) + "  " + entry.getKey())
+				.map(entry -> keyTypeMap.get(entry.getKey()) + separator + entry.getKey())
 				.reduce(expression, (exp, str) -> exp + str + ", ");
 		return removeLastTwoChars(expression);
 	}
 
 	public static String removeLastTwoChars(String s) {
 		return (s == null || s.length() == 0) ? null : (s.substring(0, s.length() - 2));
+	}
+
+	public Double computeAffinity(Configuration configuration) {
+		return attributesMap.entrySet().stream().mapToDouble(entry -> applyOperations(entry, configuration)).sum();
 	}
 
 	public static Map<String, AttributeValue> computeAffinity(Map<String, Double> attributesMap,
