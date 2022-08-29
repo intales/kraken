@@ -14,6 +14,10 @@ plugins {
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
+    maven {
+        name "DynamoDB Local Release Repository"
+        url "https://s3-us-west-2.amazonaws.com/dynamodb-local/release"
+    }
 }
 
 version = '1.0'
@@ -71,8 +75,11 @@ dependencies {
  	implementation 'software.amazon.awssdk:dynamodb'
  	implementation 'software.amazon.awssdk:s3'
 	implementation group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
- 	
- 	
+
+	// for local DynamoDB
+	testImplementation group: 'com.amazonaws', name: 'DynamoDBLocal', version: '1.16.0'
+	testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '1.12.286'
+	
 
 	// https://mvnrepository.com/artifact/org.slf4j/slf4j-api
 	// SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".

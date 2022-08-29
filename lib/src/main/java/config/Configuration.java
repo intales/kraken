@@ -3,6 +3,16 @@ package config;
 import java.util.List;
 
 public class Configuration {
+	public Configuration(List<TableConfiguration> tableConfigurations, int updateThreads, String updateTable,
+			String affinityKey, String affinityField) {
+		super();
+		this.tableConfigurations = tableConfigurations;
+		this.updateThreads = updateThreads;
+		this.updateTable = updateTable;
+		this.affinityKey = affinityKey;
+		this.affinityField = affinityField;
+	}
+
 	private List<TableConfiguration> tableConfigurations;
 	private int updateThreads;
 	private String updateTable;

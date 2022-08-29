@@ -24,7 +24,7 @@ public class DynamoDB implements DataManager {
 	private Configuration configuration;
 	private DynamoDbClient client;
 	private ExecutorService executor = null;
-	private Vector<Integer> counterVector;
+	private Vector<Integer> counterVector = new Vector<>();
 	private Map<Interaction, UpdateData> data = null;
 	private boolean dryRun;
 
@@ -36,15 +36,19 @@ public class DynamoDB implements DataManager {
 			boolean dryRun) {
 		this.configuration = configuration;
 		this.dryRun = dryRun;
-		counterVector = new Vector<>();
 		client = DynamoDbClient.builder().credentialsProvider(credentialsProvider).region(region).build();
 	}
 
 	public DynamoDB(Configuration configuration, boolean dryRun) {
 		this.configuration = configuration;
 		this.dryRun = dryRun;
-		counterVector = new Vector<>();
 		client = DynamoDbClient.builder().build();
+	}
+  
+  public DynamoDB(Configuration configuration, DynamoDbClient client) {
+		this.configuration = configuration;
+		this.dryRun = false;
+		this.client = client;
 	}
 
 	private Map<Interaction, UpdateData> scanTable(TableConfiguration tableConfiguration, Optional<String> startDate,

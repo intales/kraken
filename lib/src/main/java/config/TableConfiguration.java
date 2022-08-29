@@ -5,6 +5,19 @@ import java.util.Collections;
 import java.util.List;
 
 public class TableConfiguration {
+	public TableConfiguration(String name, String field, int threads, String typename, String key,
+			String[] affinityOperations, double weight, double exponent) {
+		super();
+		this.name = name;
+		this.field = field;
+		this.threads = threads;
+		this.typename = typename;
+		this.key = key;
+		this.affinityOperations = affinityOperations;
+		this.weight = weight;
+		this.exponent = exponent;
+	}
+
 	private String name;
 	private String field;
 	private int threads;
