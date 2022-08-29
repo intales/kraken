@@ -1,6 +1,7 @@
 package lib;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
@@ -23,6 +24,12 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 class DynamoDBIntegrationTest {
 
+	private static final String TO_ID = "toID";
+	private static final String FROM_ID = "fromID";
+	private static final String TABLE_INTERACTION = "Interactions";
+	private static final String TABLE_COLLABORAION = "Collaboration";
+	private static final String TABLE_COMMENT = "Comment";
+	private static final String TABLE_LIKE = "Like";
 	private static LocalDynamoDb server;
 
 	@BeforeAll
@@ -33,9 +40,10 @@ class DynamoDBIntegrationTest {
 
 	private static Configuration getConfiguration() {
 		List<TableConfiguration> tableConfigurations = Arrays
-				.asList(new TableConfiguration("Like", "fromID", 1, "likes", ":lik", null, 1, 1),
-						new TableConfiguration("Comments", "fromID", 1, "comm", ":com", null, 1, 1));
-		Configuration configuration = new Configuration(tableConfigurations, 2, "Interactions", ":aff", "affinity");
+				.asList(new TableConfiguration(TABLE_LIKE, FROM_ID, 1, "likes", ":lik", null, 1, 1),
+						new TableConfiguration(TABLE_COMMENT, FROM_ID, 1, "comm", ":com", null, 1, 1),
+						new TableConfiguration(TABLE_COLLABORAION, FROM_ID, 1, "coll", ":col", null, 1, 1));
+		Configuration configuration = new Configuration(tableConfigurations, 2, TABLE_INTERACTION, ":aff", "affinity");
 		return configuration;
 	}
 
@@ -50,6 +58,10 @@ class DynamoDBIntegrationTest {
 
 	private String createTable(String tableName) {
 		return server.createTable(tableName, "id");
+	}
+
+	private String createTable(String tableName, String partitionKey, String sortKey) {
+		return server.createTable(tableName, partitionKey, sortKey);
 	}
 
 	private boolean insertData(String tableName, Map<String, AttributeValue> itemValues) {
@@ -77,17 +89,21 @@ class DynamoDBIntegrationTest {
 		List<Integer> range = IntStream.range(start, end).boxed().collect(Collectors.toList());
 		for (Integer i : range) {
 			itemValues.put("id", AttributeValue.fromS("ID-" + i));
-			itemValues.put("fromID", AttributeValue.fromS("USER-" + i));
-			itemValues.put("toID", AttributeValue.fromS("USER-" + randomInts(start, end, i)));
+			itemValues.put(FROM_ID, AttributeValue.fromS("USER-" + i));
+			itemValues.put(TO_ID, AttributeValue.fromS("USER-" + randomInts(start, end, i)));
 			assertTrue(insertData(tableName, itemValues));
 		}
 	}
 
 	@Test
 	public void scan() {
-		populateTable("Like");
-		populateTable("Comment");
+		populateTable(TABLE_LIKE);
+		populateTable(TABLE_COMMENT);
+		populateTable(TABLE_COLLABORAION);
+		createTable(TABLE_INTERACTION, FROM_ID, TO_ID);
 		DataManager dynamodb = new DynamoDB(getConfiguration(), server.getClient());
 		dynamodb.scan();
+		dynamodb.update();
+		assertNotEquals(server.scanTable(TABLE_INTERACTION), 0);
 	}
 }

@@ -113,29 +113,40 @@ class LocalDynamoDb {
 						.writeCapacityUnits(CAPACITY)
 						.build())
 				.build();
+		return buildTable(request, tableName, dbWaiter);
+	}
 
-		String newTable = "";
-		try {
-			CreateTableResponse response = client.createTable(request);
-			DescribeTableRequest tableRequest = DescribeTableRequest.builder().tableName(tableName).build();
-
-			// Wait until the Amazon DynamoDB table is created
-			WaiterResponse<DescribeTableResponse> waiterResponse = dbWaiter.waitUntilTableExists(tableRequest);
-			waiterResponse.matched().response().ifPresent(System.out::println);
-
-			newTable = response.tableDescription().tableName();
-			return newTable;
-		} catch (DynamoDbException e) {
-			propagate(e);
-			return "";
-		}
+	public String createTable(String tableName, String partitionKey, String sortKey) {
+		DynamoDbWaiter dbWaiter = client.waiter();
+		CreateTableRequest request = CreateTableRequest
+				.builder()
+				.keySchema(KeySchemaElement.builder().attributeName(partitionKey).keyType(KeyType.HASH).build(),
+						KeySchemaElement.builder().attributeName(sortKey).keyType(KeyType.RANGE).build())
+				.attributeDefinitions(
+						AttributeDefinition
+								.builder()
+								.attributeName(partitionKey)
+								.attributeType(ScalarAttributeType.S)
+								.build(),
+						AttributeDefinition
+								.builder()
+								.attributeName(sortKey)
+								.attributeType(ScalarAttributeType.S)
+								.build())
+				.tableName(tableName)
+				.provisionedThroughput(ProvisionedThroughput
+						.builder()
+						.readCapacityUnits(CAPACITY)
+						.writeCapacityUnits(CAPACITY)
+						.build())
+				.build();
+		return buildTable(request, tableName, dbWaiter);
 	}
 
 	public boolean insertData(String tableName, Map<String, AttributeValue> itemValues) {
 		PutItemRequest request = PutItemRequest.builder().tableName(tableName).item(itemValues).build();
 		try {
 			client.putItem(request);
-			System.out.println(tableName + " was successfully updated");
 			return true;
 		} catch (ResourceNotFoundException e) {
 			System.err.format("Error: The Amazon DynamoDB table \"%s\" can't be found.\n", tableName);
@@ -150,5 +161,21 @@ class LocalDynamoDb {
 		ScanRequest request = ScanRequest.builder().tableName(tableName).build();
 		ScanResponse response = client.scan(request);
 		return response.items();
+	}
+
+	private String buildTable(CreateTableRequest request, String tableName, DynamoDbWaiter dbWaiter) {
+		try {
+			CreateTableResponse response = client.createTable(request);
+			DescribeTableRequest tableRequest = DescribeTableRequest.builder().tableName(tableName).build();
+
+			// Wait until the Amazon DynamoDB table is created
+			WaiterResponse<DescribeTableResponse> waiterResponse = dbWaiter.waitUntilTableExists(tableRequest);
+			// waiterResponse.matched().response().ifPresent(System.out::println);
+
+			return response.tableDescription().tableName();
+		} catch (DynamoDbException e) {
+			propagate(e);
+			return "";
+		}
 	}
 }

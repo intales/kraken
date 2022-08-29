@@ -44,8 +44,8 @@ public class DynamoDB implements DataManager {
 		this.dryRun = dryRun;
 		client = DynamoDbClient.builder().build();
 	}
-  
-  public DynamoDB(Configuration configuration, DynamoDbClient client) {
+
+	public DynamoDB(Configuration configuration, DynamoDbClient client) {
 		this.configuration = configuration;
 		this.dryRun = false;
 		this.client = client;
