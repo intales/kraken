@@ -22,12 +22,12 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 public class DynamoDB implements DataManager {
 	private Configuration configuration;
 	private DynamoDbClient client;
-	private ExecutorService executor = null;
-	private Vector<Integer> counterVector;
-	private Map<Interaction, UpdateData> data = null;
+	private ExecutorService executor;
 	private boolean dryRun;
 	private String startDate;
 	private String endDate;
+	private Map<Interaction, UpdateData> data;
+	private Vector<Integer> counterVector = new Vector<>();
 
 	public DynamoDB(Configuration configuration, ProfileCredentialsProvider credentialsProvider, boolean dryRun,
 			String startDate, String endDate) {
@@ -40,7 +40,6 @@ public class DynamoDB implements DataManager {
 		this.dryRun = dryRun;
 		this.startDate = startDate;
 		this.endDate = endDate;
-		counterVector = new Vector<>();
 		client = DynamoDbClient.builder().credentialsProvider(credentialsProvider).region(region).build();
 	}
 
@@ -49,8 +48,13 @@ public class DynamoDB implements DataManager {
 		this.dryRun = dryRun;
 		this.startDate = startDate;
 		this.endDate = endDate;
-		counterVector = new Vector<>();
 		client = DynamoDbClient.builder().build();
+	}
+
+	public DynamoDB(Configuration configuration, DynamoDbClient client) {
+		this.configuration = configuration;
+		this.dryRun = false;
+		this.client = client;
 	}
 
 	private Map<Interaction, UpdateData> scanTable(TableConfiguration tableConfiguration) {
