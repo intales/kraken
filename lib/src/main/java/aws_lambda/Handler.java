@@ -5,9 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.Map;
 
 import com.amazonaws.services.lambda.runtime.Context;
@@ -23,42 +20,16 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
-@SuppressWarnings("unused")
 public class Handler implements RequestHandler<Map<String, Object>, String> {
 	// You can add initialization code outside of your handler method to reuse
 	// resources across multiple invocations. When the runtime loads your handler,
 	// it runs static code and the class constructor. Resources that are created
 	// during initialization stay in memory between invocations, and can be reused
 	// by the handler thousands of times.
-	SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 	Region region = Region.EU_CENTRAL_1;
 
 	// init DynamoDB here and reuse
 	// download config file from S3 in handleRequest
-
-	private Calendar getDate() {
-		Date date = new Date();
-		Calendar calendar = Calendar.getInstance();
-		calendar.setTime(date);
-		calendar.set(Calendar.MILLISECOND, 0);
-		calendar.set(Calendar.SECOND, 0);
-		return calendar;
-	}
-
-	private String getTodayDate(int minute, int hour) {
-		Calendar calendar = getDate();
-		calendar.set(Calendar.MINUTE, minute);
-		calendar.set(Calendar.HOUR_OF_DAY, hour);
-		return formatter.format(calendar.getTime());
-	}
-
-	private String getYesterdayDate(int minute, int hour) {
-		Calendar calendar = getDate();
-		calendar.set(Calendar.MINUTE, minute);
-		calendar.set(Calendar.HOUR_OF_DAY, hour);
-		calendar.add(Calendar.DATE, -1);
-		return formatter.format(calendar.getTime());
-	}
 
 	@Override
 	public String handleRequest(Map<String, Object> input, Context context) {

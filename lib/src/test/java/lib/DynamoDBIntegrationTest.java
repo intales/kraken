@@ -40,10 +40,44 @@ class DynamoDBIntegrationTest {
 
 	private static Configuration getConfiguration() {
 		List<TableConfiguration> tableConfigurations = Arrays
-				.asList(new TableConfiguration(TABLE_LIKE, FROM_ID, 1, "likes", ":lik", null, 1, 1),
-						new TableConfiguration(TABLE_COMMENT, FROM_ID, 1, "comm", ":com", null, 1, 1),
-						new TableConfiguration(TABLE_COLLABORAION, FROM_ID, 1, "coll", ":col", null, 1, 1));
-		Configuration configuration = new Configuration(tableConfigurations, 2, TABLE_INTERACTION, ":aff", "affinity");
+				.asList(TableConfiguration
+						.builder()
+						.withName(TABLE_LIKE)
+						.withField(FROM_ID)
+						.withThreads(1)
+						.withTypename("likes")
+						.withKey(":lik")
+						.withWeight(1)
+						.withExponent(1)
+						.build(),
+						TableConfiguration
+								.builder()
+								.withName(TABLE_COMMENT)
+								.withField(FROM_ID)
+								.withThreads(1)
+								.withTypename("comments")
+								.withKey(":com")
+								.withWeight(1)
+								.withExponent(1)
+								.build(),
+						TableConfiguration
+								.builder()
+								.withName(TABLE_COLLABORAION)
+								.withField(FROM_ID)
+								.withThreads(1)
+								.withTypename("collaborations")
+								.withKey(":col")
+								.withWeight(1)
+								.withExponent(1)
+								.build());
+		Configuration configuration = Configuration
+				.builder()
+				.withUpdateTable(TABLE_INTERACTION)
+				.withAffinityField("affinity")
+				.withAffinityKey(":aff")
+				.withTableConfigurations(tableConfigurations)
+				.build();
+
 		return configuration;
 	}
 

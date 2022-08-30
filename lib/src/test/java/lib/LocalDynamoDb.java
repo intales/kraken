@@ -171,7 +171,6 @@ class LocalDynamoDb {
 			// Wait until the Amazon DynamoDB table is created
 			WaiterResponse<DescribeTableResponse> waiterResponse = dbWaiter.waitUntilTableExists(tableRequest);
 			// waiterResponse.matched().response().ifPresent(System.out::println);
-
 			return response.tableDescription().tableName();
 		} catch (DynamoDbException e) {
 			propagate(e);
