@@ -18,7 +18,7 @@ public class Main {
 	private static final int MISSING_EXIT_CODE = 1;
 
 	public static void argsCheck(StringBuilder yamlFile, StringBuilder dryRun, StringBuilder startDate,
-			StringBuilder endDate, String[] args) {
+			StringBuilder endDate, String[] args) throws IllegalArgumentException {
 		DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 		sdf.setLenient(false);
 		for (int i = 0; i < args.length; i++) {
@@ -37,7 +37,7 @@ public class Main {
 					startDate.append(date);
 				} catch (ParseException e) {
 					System.err.println(e.getMessage());
-					System.exit(INVALID_EXIT_CODE);
+					throw new IllegalArgumentException("Invalid start date");
 				}
 			} else if (arg.startsWith("--end-date") && equalIndex != -1) {
 				try {
@@ -46,18 +46,20 @@ public class Main {
 					endDate.append(date);
 				} catch (ParseException e) {
 					System.err.println(e.getMessage());
-					System.exit(INVALID_EXIT_CODE);
+					throw new IllegalArgumentException("Invalid end date");
 				}
 			} else {
-				System.err.println("Unsupported argument " + arg);
-				System.exit(INVALID_EXIT_CODE);
+				throw new IllegalArgumentException("Unsupported argument " + arg);
 			}
 		}
 		if (startDate.length() == 0) {
-			System.err.println("--start-date is missing.");
+			System.err.println("--start-date\tis missing.");
 		}
 		if (endDate.length() == 0) {
-			System.err.println("--end-date is missing.");
+			System.err.println("--end-date\tis missing.");
+		}
+		if (dryRun.length() == 0) {
+			dryRun.append("false");
 		}
 	}
 
@@ -67,7 +69,12 @@ public class Main {
 		StringBuilder startDate = new StringBuilder("");
 		StringBuilder endDate = new StringBuilder("");
 
-		argsCheck(defaultYamlFile, dryRun, startDate, endDate, args);
+		try {
+			argsCheck(defaultYamlFile, dryRun, startDate, endDate, args);
+		} catch (IllegalArgumentException e) {
+			System.err.println(e.getMessage());
+			System.exit(INVALID_EXIT_CODE);
+		}
 
 		// Step 1: read configuration file
 		Configuration configuration = null;
@@ -82,11 +89,14 @@ public class Main {
 		DataManager dynamo = new DynamoDB(configuration, ProfileCredentialsProvider.create(), dryRunBool);
 		Instant start = Instant.now();
 
-		// Step 2: scan and aggregate data
-		dynamo.scan();
-
-		// Step 3: update table
-		dynamo.update();
+		// Step 2: scan, aggregate and update data
+		if (startDate.length() > 0 && endDate.length() > 0) {
+			dynamo.scanIncremental(startDate.toString(), endDate.toString());
+			dynamo.updateIncremental();
+		} else {
+			dynamo.scan();
+			dynamo.update();
+		}
 		Instant finish = Instant.now();
 		System.out.println("Time = " + Duration.between(start, finish).toMillis() + " ms");
 	}

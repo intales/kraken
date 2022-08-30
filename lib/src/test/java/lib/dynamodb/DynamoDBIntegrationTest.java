@@ -1,4 +1,4 @@
-package lib;
+package lib.dynamodb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -130,7 +130,7 @@ class DynamoDBIntegrationTest {
 	}
 
 	@Test
-	public void scan() {
+	public void aggregation() {
 		populateTable(TABLE_LIKE);
 		populateTable(TABLE_COMMENT);
 		populateTable(TABLE_COLLABORAION);

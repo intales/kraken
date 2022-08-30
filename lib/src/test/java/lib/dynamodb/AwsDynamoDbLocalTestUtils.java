@@ -1,4 +1,4 @@
-package lib;
+package lib.dynamodb;
 
 /*
  * https://github.com/redskap/aws-dynamodb-java-example-local-testing/blob/master/src/test/java/io/redskap/java/aws/dynamodb/example/local/testing/AwsDynamoDbLocalTestUtils.java
