@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import config.Configuration;
@@ -11,7 +12,9 @@ import config.TableConfiguration;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 public class UpdateData {
-	private Map<String, Double> attributesMap;
+	private static final double A = 43;
+	private static final int B = 100;
+	private Map<String, Double> attributesMap = null;
 
 	public UpdateData() {
 		attributesMap = new HashMap<>();
@@ -50,6 +53,17 @@ public class UpdateData {
 	}
 
 	public String getUpdateExpression(Map<String, String> keyTypeMap, String separator) {
+		if (keyTypeMap == null) {
+			throw new IllegalArgumentException("keyTypeMap is null.");
+		}
+		if (separator == null) {
+			throw new IllegalArgumentException("separator is null.");
+		}
+		if (!keyTypeMap.keySet().containsAll(attributesMap.keySet())) {
+			Set<String> keySet = attributesMap.keySet();
+			keySet.removeAll(keyTypeMap.keySet());
+			throw new IllegalArgumentException("keyType Map does not contain the following keys: " + keySet);
+		}
 		String expression = "";
 		expression = attributesMap
 				.entrySet()
@@ -75,7 +89,6 @@ public class UpdateData {
 				.mapToDouble(entry -> applyOperations(entry, configuration))
 				.sum();
 
-		attributesMap.put(configuration.getAffinityKey(), affinity);
 		Map<String, AttributeValue> affinityMap = new HashMap<>();
 		affinityMap.put(configuration.getAffinityKey(), AttributeValue.fromN(affinity.toString()));
 		return affinityMap;
@@ -97,6 +110,8 @@ public class UpdateData {
 			value = Math.pow(value, tableConf.getExponent());
 			// multiplication
 			value = value * tableConf.getWeight();
+		} else {
+			System.err.println("Paramter " + key + " not found.");
 		}
 		return value;
 	}
@@ -109,8 +124,15 @@ public class UpdateData {
 		case "logarithm":
 			acc = Math.log(acc);
 			break;
+		case "sigmoid":
+			acc = customSigmoid(acc);
+			break;
 		default:
 		}
 		return acc;
+	}
+
+	public static double customSigmoid(double x) {
+		return -B + (2 * B / (Math.exp(-x / A) + 1));
 	}
 }

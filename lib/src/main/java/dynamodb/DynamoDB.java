@@ -82,8 +82,8 @@ public class DynamoDB implements DataManager {
 				.parallel()
 				.map(table -> scanTable(table, startDate, endDate))
 				.reduce(initValue, DynamoDB::combineMaps);
-		System.out.println("Total aggregated data = " + data.size());
 		shutdown();
+		System.out.println("Total aggregated data = " + data.size());
 	}
 
 	@Override
