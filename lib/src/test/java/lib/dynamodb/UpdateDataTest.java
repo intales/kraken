@@ -130,8 +130,9 @@ class UpdateDataTest {
 	@Test
 	@DisplayName("Calculare correct affinity according to Configuration and passed table")
 	void testComputeAffinityMapOfStringDoubleConfiguration() {
-		Double expectedAffinity = 38.3;
-		String[] operations = { "increment" };
+		Double expectedAffinity = 49.2;
+		String[] operationsLike = { "increment", "sigmoid" };
+		String[] operationsComment = { "logarithm" };
 		String affinityKey = ":aff";
 		Map<String, Double> map = new HashMap<>();
 		map.put(":lik", 10.0);
@@ -147,7 +148,7 @@ class UpdateDataTest {
 								.withThreads(1)
 								.withTypename("likes")
 								.withKey(":lik")
-								.withAffinityOperations(operations)
+								.withAffinityOperations(operationsLike)
 								.withExponent(2)
 								.withWeight(0.3)
 								.build(),
@@ -158,12 +159,14 @@ class UpdateDataTest {
 										.withThreads(1)
 										.withTypename("comments")
 										.withKey(":com")
+										.withAffinityOperations(operationsComment)
 										.withExponent(1)
 										.withWeight(1)
 										.build()))
 				.build();
 		Map<String, AttributeValue> affinityMap = UpdateData.computeAffinity(map, configuration);
-		assertEquals(affinityMap.get(affinityKey).n(), expectedAffinity.toString());
+		Double affinity = Double.valueOf(affinityMap.get(affinityKey).n());
+		assertEquals(affinity, expectedAffinity, .1);
 	}
 
 	@Test
@@ -176,5 +179,12 @@ class UpdateDataTest {
 				() -> assertEquals(UpdateData.customSigmoid(60), 60.2, delta),
 				() -> assertEquals(UpdateData.customSigmoid(80), 73.0, delta),
 				() -> assertEquals(UpdateData.customSigmoid(100), 82.1, delta));
+	}
+
+	@Test
+	void testRemoveLastTwoChars() {
+		assertAll("removeLastTwoChars should fail if a null or a short string is passed",
+				() -> assertThrows(IllegalArgumentException.class, () -> UpdateData.removeLastTwoChars(null)),
+				() -> assertThrows(IllegalArgumentException.class, () -> UpdateData.removeLastTwoChars("")));
 	}
 }

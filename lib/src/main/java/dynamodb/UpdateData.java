@@ -74,7 +74,11 @@ public class UpdateData {
 	}
 
 	public static String removeLastTwoChars(String s) {
-		return (s == null || s.length() == 0) ? null : (s.substring(0, s.length() - 2));
+		if (s == null)
+			throw new IllegalArgumentException("Cannot remove last two chars from null string.");
+		if (s.length() < 2)
+			throw new IllegalArgumentException("Cannot remove last two chars from a string shorter than 2 characters.");
+		return s.substring(0, s.length() - 2);
 	}
 
 	public Double computeAffinity(Configuration configuration) {
