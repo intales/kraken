@@ -123,4 +123,11 @@ public class TableConfiguration {
 			return new TableConfiguration(this);
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "TableConfiguration [name=" + name + ", field=" + field + ", typename=" + typename + ", key=" + key
+				+ ", affinityOperations=" + Arrays.toString(affinityOperations) + ", threads=" + threads + ", exponent="
+				+ exponent + ", weight=" + weight + "]";
+	}
 }
