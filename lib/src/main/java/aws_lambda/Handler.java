@@ -14,6 +14,7 @@ import config.Configuration;
 import config.YAML;
 import dynamodb.DynamoDB;
 import main.DataManager;
+import main.TicToc;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -40,7 +41,9 @@ public class Handler implements RequestHandler<Map<String, Object>, String> {
 		boolean dryRun = false;
 		// init datamanager
 		DataManager datamanager = new DynamoDB(configuration, dryRun);
+		TicToc.tic();
 		datamanager.scan();
+		TicToc.toc("scan");
 		datamanager.update();
 		return "Success";
 	}

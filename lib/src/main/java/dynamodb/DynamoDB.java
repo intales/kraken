@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import config.Configuration;
 import config.TableConfiguration;
 import main.DataManager;
+import main.TicToc;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -102,7 +103,7 @@ public class DynamoDB implements DataManager {
 			System.out.println("Performing dry run.");
 		executor = initThreadPool();
 		ArrayList<Interaction> keys = Collections.list(((ConcurrentHashMap<Interaction, UpdateData>) data).keys());
-		int totalThreads = Math.round(keys.size() / 2);
+		int totalThreads = 64;
 
 		Map<String, String> keyTypeMap = configuration
 				.getTableConfigurations()
@@ -112,12 +113,16 @@ public class DynamoDB implements DataManager {
 		// add affinity to keyTypeMap
 		keyTypeMap.put(configuration.getAffinityKey(), configuration.getAffinityField());
 
+		TicToc.tic();
 		for (int thread = 0; thread < totalThreads; thread++) {
 			UpdateTask task = new UpdateTask(keys, data, client, counterVector, thread, totalThreads, configuration,
 					keyTypeMap, dryRun, incremental);
 			executor.execute(task);
 		}
+		TicToc.toc("for in update with " + totalThreads + " threads.");
+		TicToc.tic();
 		shutdown();
+		TicToc.toc("shutdown");
 		System.out.println("Total updates = " + counterVector.stream().mapToInt(i -> i).sum());
 	}
 
